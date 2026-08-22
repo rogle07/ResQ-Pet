@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+Antigravity IDE.exe
+
+node_modules/
+dist/
+build/
+coverage/
+*.log

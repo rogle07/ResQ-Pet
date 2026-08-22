@@ -1,0 +1,68 @@
+#ifndef PETGUARDIAN_CONFIG_H
+#define PETGUARDIAN_CONFIG_H
+
+// ==== DEVICE IDENTITY ====
+// Must match the deviceId linked to a pet via the owner dashboard
+// (Owner > Pets > pet profile > "Link collar device").
+#define DEVICE_ID "COLLAR-0001"
+
+// ==== WIFI ====
+#define WIFI_SSID "your_wifi_ssid"
+#define WIFI_PASSWORD "your_wifi_password"
+
+// ==== MQTT BROKER ====
+// Must match MQTT_BROKER_URL (host/port) configured in the backend's .env.
+// This firmware assumes an unencrypted TCP broker on the local network,
+// e.g. Mosquitto running alongside the backend. For production, prefer
+// MQTTS (TLS) with per-device credentials rather than the shared example
+// broker user/pass below.
+#define MQTT_BROKER_HOST "192.168.1.100"
+#define MQTT_BROKER_PORT 1883
+#define MQTT_USERNAME "petguardian"
+#define MQTT_PASSWORD "change_this_mqtt_password"
+
+// Publish topic: petguardian/<deviceId>/reading — matches what the backend's
+// MQTT bridge (backend/src/services/mqttBridge.js) subscribes to.
+#define MQTT_TOPIC_PREFIX "petguardian/"
+#define MQTT_TOPIC_SUFFIX "/reading"
+
+// ==== TIMING ====
+#define PUBLISH_INTERVAL_MS 15000UL   // how often a full reading is sent
+#define GPS_READ_TIMEOUT_MS 1500UL    // max time to wait for a GPS fix per cycle
+#define WIFI_RETRY_DELAY_MS 5000UL
+#define MQTT_RETRY_DELAY_MS 5000UL
+
+// ==== EMERGENCY THRESHOLDS (LOCAL, MIRRORS BACKEND DEFAULTS) ====
+// The backend re-evaluates every reading server-side regardless of these —
+// this local copy only drives the on-collar buzzer/LED for an instant
+// physical signal even if connectivity is briefly lost.
+#define LOCAL_HIGH_TEMP_C 39.5f
+#define LOCAL_LOW_BATTERY_PERCENT 15
+#define LOCAL_FALL_ACCEL_DELTA_G 2.5f
+
+// ==== PIN MAP (ESP32 DevKit) ====
+// GPS module (NEO-6M) on UART2
+#define GPS_RX_PIN 16   // ESP32 RX2 <- GPS TX
+#define GPS_TX_PIN 17   // ESP32 TX2 -> GPS RX
+#define GPS_BAUD 9600
+
+// MPU6050 accelerometer/gyro on I2C
+#define I2C_SDA_PIN 21
+#define I2C_SCL_PIN 22
+
+// DS18B20 temperature probe (OneWire)
+#define ONE_WIRE_PIN 4
+
+// Battery voltage sense (via resistor divider into ADC1 channel)
+#define BATTERY_ADC_PIN 34
+// Adjust to your divider ratio; assumes a 2:1 divider (e.g. 100k/100k)
+// feeding a 2S/1S LiPo down into the ESP32's 0-3.3V ADC range.
+#define BATTERY_DIVIDER_RATIO 2.0f
+#define BATTERY_MAX_VOLTAGE 4.2f
+#define BATTERY_MIN_VOLTAGE 3.3f
+
+// Buzzer + status LED
+#define BUZZER_PIN 25
+#define STATUS_LED_PIN 2 // most ESP32 DevKits have a built-in LED here
+
+#endif
