@@ -11,7 +11,7 @@ import { INITIAL_FINDER_REPORTS } from '@/data/finderMockData';
 import { FinderReport } from '@/types/finder';
 
 export const FinderMyReports: React.FC = () => {
-  const [reports, setReports] = useState<FinderReport[]>(INITIAL_FINDER_REPORTS);
+  const [reports] = useState<FinderReport[]>(INITIAL_FINDER_REPORTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [selectedReport, setSelectedReport] = useState<FinderReport | null>(null);

@@ -18,7 +18,6 @@ import {
   Camera,
   Trash2,
   Image as ImageIcon,
-  Plus,
 } from 'lucide-react';
 import {
   INITIAL_FINDER_REPORTS,

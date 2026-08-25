@@ -1,7 +1,6 @@
 import {
   FinderReport,
   FinderPost,
-  FinderMessage,
   FinderResourceGuide,
   FinderRewardLevel,
 } from '@/types/finder';
