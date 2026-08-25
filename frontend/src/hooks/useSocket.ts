@@ -14,7 +14,7 @@ export const useSocket = () => {
   useEffect(() => {
     if (!user) return;
 
-    socket = io('/', { withCredentials: true });
+    socket = io(import.meta.env.VITE_API_URL || '/', { withCredentials: true });
 
     socket.on('connect', () => {
       socket?.emit('join:owner', user._id);

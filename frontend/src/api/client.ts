@@ -2,8 +2,12 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { store } from '@/app/store';
 import { setAccessToken, logout } from '@/features/auth/authSlice';
 
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE,
   withCredentials: true, // send the httpOnly refresh-token cookie
 });
 
@@ -48,7 +52,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { data } = await axios.post(`${BASE}/auth/refresh`, {}, { withCredentials: true });
         store.dispatch(setAccessToken(data.accessToken));
         pendingQueue.forEach((run) => run());
         pendingQueue = [];
