@@ -7,6 +7,7 @@ const ROLE_HOME: Record<UserRole, string> = {
   foster_home: '/foster-home',
   veterinarian: '/veterinarian',
   finder: '/finder',
+  donor: '/donor',
   admin: '/admin',
 };
 

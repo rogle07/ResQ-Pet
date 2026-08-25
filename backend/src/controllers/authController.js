@@ -26,7 +26,7 @@ const register = asyncHandler(async (req, res) => {
     throw new Error('An account with this email already exists');
   }
 
-  const allowedSelfRegisterRoles = ['owner', 'rescue_team', 'ngo', 'foster_home', 'veterinarian', 'finder'];
+  const allowedSelfRegisterRoles = ['owner', 'rescue_team', 'ngo', 'foster_home', 'veterinarian', 'finder', 'donor'];
   const finalRole = allowedSelfRegisterRoles.includes(role) ? role : 'owner';
 
   const verificationToken = crypto.randomBytes(32).toString('hex');

@@ -5,6 +5,7 @@ export type UserRole =
   | 'foster_home'
   | 'veterinarian'
   | 'finder'
+  | 'donor'
   | 'admin';
 
 export interface User {

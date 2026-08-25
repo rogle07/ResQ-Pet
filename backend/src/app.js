@@ -18,6 +18,7 @@ const donationRoutes = require('./routes/donationRoutes');
 const ngoRoutes = require('./routes/ngoRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const veterinarianRoutes = require('./routes/veterinarianRoutes');
 const { stripeWebhook } = require('./controllers/donationController');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
@@ -83,6 +84,7 @@ app.use('/api/donations', donationRoutes);
 app.use('/api/ngo', ngoRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/veterinarian', veterinarianRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
