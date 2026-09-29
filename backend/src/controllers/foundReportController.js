@@ -11,16 +11,51 @@ const MATCH_RADIUS_METERS = 5000; // consider lost pets within 5km as possible m
 // @desc    Submit a found-pet report
 // @route   POST /api/found-reports
 // @access  Private (finder or any authenticated user)
+// @desc    Submit a found-pet report
+// @route   POST /api/found-reports
+// @access  Private (finder, found_pet_reporter or any authenticated user)
 const createFoundReport = asyncHandler(async (req, res) => {
-  const { description, contactPhone, lat, lng, address, foundAt, species, requestRescue, pickupAddress } = req.body;
+  const {
+    description,
+    contactPhone,
+    lat,
+    lng,
+    address,
+    foundAt,
+    timeFound,
+    species,
+    breed,
+    approximateAge,
+    gender,
+    currentPetLocation,
+    condition,
+    additionalNotes,
+    requestRescue,
+    pickupAddress,
+  } = req.body;
+
+  const parsedLat = parseFloat(lat);
+  const parsedLng = parseFloat(lng);
 
   const report = await FoundReport.create({
     reportedBy: req.user._id,
     description,
     contactPhone,
-    location: { lat, lng, address },
+    location: {
+      lat: !isNaN(parsedLat) ? parsedLat : 28.6139,
+      lng: !isNaN(parsedLng) ? parsedLng : 77.2090,
+      address: address || '',
+    },
     foundAt: foundAt || new Date(),
-    species,
+    timeFound: timeFound || '',
+    species: species || 'dog',
+    breed: breed || '',
+    approximateAge: approximateAge || '',
+    gender: gender || 'unknown',
+    currentPetLocation: currentPetLocation || '',
+    condition: condition || 'Healthy',
+    additionalNotes: additionalNotes || '',
+    status: 'pending',
     photos: req.files?.length ? await uploadFilesToCloudinary(req.files, 'found-reports') : [],
   });
 
@@ -30,7 +65,7 @@ const createFoundReport = asyncHandler(async (req, res) => {
     .filter((pet) => pet.lastKnownLocation?.lat && pet.lastKnownLocation?.lng)
     .map((pet) => ({
       pet,
-      distance: distanceInMeters(lat, lng, pet.lastKnownLocation.lat, pet.lastKnownLocation.lng),
+      distance: distanceInMeters(report.location.lat, report.location.lng, pet.lastKnownLocation.lat, pet.lastKnownLocation.lng),
     }))
     .filter((m) => m.distance <= MATCH_RADIUS_METERS)
     .sort((a, b) => a.distance - b.distance);
@@ -39,7 +74,7 @@ const createFoundReport = asyncHandler(async (req, res) => {
 
   if (possibleMatches.length > 0) {
     report.matchedPet = possibleMatches[0].pet._id;
-    report.status = 'matched';
+    report.status = 'owner_match_found';
     await report.save();
 
     // Notify owners of the top 3 closest candidates so they can verify
@@ -49,23 +84,23 @@ const createFoundReport = asyncHandler(async (req, res) => {
           recipient: m.pet.owner,
           type: 'pet_found',
           title: 'A pet matching your lost pet was found nearby',
-          message: `A finder reported a ${species || 'pet'} near your pet's last known location. Please review the report.`,
+          message: `A community member reported a ${species || 'pet'} found near your pet's last known location. Please review the report.`,
           relatedPet: m.pet._id,
         })
       )
     );
   }
 
-  // If the finder requested rescue team pickup, create a RescueRequest automatically
+  // If the reporter requested rescue team pickup, create a RescueRequest automatically
   let rescueRequest = null;
   if (requestRescue === 'true' || requestRescue === true) {
     rescueRequest = await RescueRequest.create({
       requestedBy: req.user._id,
       type: 'stray',
-      description: `Found pet reported by finder. ${description || ''}`.trim(),
+      description: `Found pet reported by reporter. Condition: ${condition || 'Normal'}. Details: ${description || ''}`.trim(),
       location: {
-        lat,
-        lng,
+        lat: report.location.lat,
+        lng: report.location.lng,
         address: pickupAddress || address || '',
       },
       priority: 'medium',
@@ -78,23 +113,26 @@ const createFoundReport = asyncHandler(async (req, res) => {
         },
       ],
     });
+    report.status = 'rescue_assigned';
+    await report.save();
     broadcastToRescueTeams(io, 'rescue:new', rescueRequest);
   }
 
   res.status(201).json({ success: true, report, possibleMatchCount: possibleMatches.length, rescueRequest });
 });
 
-// @desc    List found reports (filterable by status/species)
+// @desc    List found reports (filterable by status/species/mine)
 // @route   GET /api/found-reports
 // @access  Private
 const getFoundReports = asyncHandler(async (req, res) => {
-  const { status, species } = req.query;
+  const { status, species, mine } = req.query;
   const filter = {};
   if (status) filter.status = status;
   if (species) filter.species = species;
+  if (mine === 'true') filter.reportedBy = req.user._id;
 
   const reports = await FoundReport.find(filter)
-    .populate('reportedBy', 'name phone')
+    .populate('reportedBy', 'name phone email')
     .populate('matchedPet', 'name species images owner')
     .sort('-createdAt');
 
@@ -121,7 +159,7 @@ const getFoundReportById = asyncHandler(async (req, res) => {
 // @route   POST /api/found-reports/:id/claim
 // @access  Private (owner)
 const claimFoundReport = asyncHandler(async (req, res) => {
-  const { petId } = req.body;
+  const { petId, note } = req.body;
   const report = await FoundReport.findById(req.params.id);
 
   if (!report) {
@@ -129,20 +167,53 @@ const claimFoundReport = asyncHandler(async (req, res) => {
     throw new Error('Found report not found');
   }
 
-  const pet = await Pet.findById(petId);
-  if (!pet || pet.owner.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error('Not authorized to claim on behalf of this pet');
+  if (petId) {
+    const pet = await Pet.findById(petId);
+    if (!pet || pet.owner.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error('Not authorized to claim on behalf of this pet');
+    }
+    report.matchedPet = pet._id;
+    pet.status = 'safe';
+    await pet.save();
   }
 
-  report.matchedPet = pet._id;
-  report.status = 'claimed';
+  report.status = 'reunited';
   await report.save();
 
-  pet.status = 'safe';
-  await pet.save();
+  const io = req.app.get('io');
+  await notifyUser(io, {
+    recipient: report.reportedBy,
+    type: 'pet_found',
+    title: 'Your Found Pet report was claimed by the owner!',
+    message: `${req.user.name} identified their pet from your report and sent contact details. ${note ? `Note: "${note}"` : ''}`,
+  });
 
   res.json({ success: true, report });
 });
 
-module.exports = { createFoundReport, getFoundReports, getFoundReportById, claimFoundReport };
+// @desc    Update found report status
+// @route   PUT /api/found-reports/:id/status
+// @access  Private
+const updateFoundReportStatus = asyncHandler(async (req, res) => {
+  const { status, matchedPetId } = req.body;
+  const report = await FoundReport.findById(req.params.id);
+  if (!report) {
+    res.status(404);
+    throw new Error('Found report not found');
+  }
+
+  if (status) report.status = status;
+  if (matchedPetId) report.matchedPet = matchedPetId;
+  await report.save();
+
+  res.json({ success: true, report });
+});
+
+module.exports = {
+  createFoundReport,
+  getFoundReports,
+  getFoundReportById,
+  claimFoundReport,
+  updateFoundReportStatus,
+};

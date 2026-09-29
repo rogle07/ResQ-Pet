@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const ROLES = ['owner', 'rescue_team', 'ngo', 'foster_home', 'veterinarian', 'finder', 'donor', 'admin'];
+const ROLES = ['owner', 'finder', 'found_pet_reporter', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor', 'admin'];
 
 const userSchema = new mongoose.Schema(
   {
@@ -61,12 +61,6 @@ const userSchema = new mongoose.Schema(
     rescueTeamDetails: {
       teamName: String,
       jurisdiction: String,
-      verified: { type: Boolean, default: false },
-    },
-    veterinarianDetails: {
-      clinicName: String,
-      licenseNumber: String,
-      specialization: String,
       verified: { type: Boolean, default: false },
     },
     fosterHomeDetails: {

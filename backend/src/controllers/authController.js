@@ -26,7 +26,7 @@ const register = asyncHandler(async (req, res) => {
     throw new Error('An account with this email already exists');
   }
 
-  const allowedSelfRegisterRoles = ['owner', 'rescue_team', 'ngo', 'foster_home', 'veterinarian', 'finder', 'donor'];
+  const allowedSelfRegisterRoles = ['owner', 'finder', 'found_pet_reporter', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
   const finalRole = allowedSelfRegisterRoles.includes(role) ? role : 'owner';
 
   const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -70,7 +70,7 @@ const register = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   if (!email || !password) {
     res.status(400);
@@ -86,6 +86,12 @@ const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     res.status(403);
     throw new Error('This account has been deactivated. Contact support.');
+  }
+
+  // Validate selected role matches account role (ignore if role not provided or if admin)
+  if (role && user.role !== 'admin' && user.role !== role) {
+    res.status(401);
+    throw new Error(`This account is registered as "${user.role.replace('_', ' ')}". Please select the correct role.`);
   }
 
   user.lastLogin = new Date();
@@ -159,7 +165,7 @@ const googleLogin = asyncHandler(async (req, res) => {
   let user = await User.findOne({ email });
 
   if (!user) {
-    const allowedRoles = ['owner', 'rescue_team', 'ngo', 'foster_home', 'veterinarian', 'finder'];
+    const allowedRoles = ['owner', 'finder', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
     const finalRole = allowedRoles.includes(role) ? role : 'owner';
 
     user = await User.create({
@@ -225,7 +231,7 @@ const facebookLogin = asyncHandler(async (req, res) => {
   let user = await User.findOne({ $or: [{ facebookId: fbUser.id }, { email }] });
 
   if (!user) {
-    const allowedRoles = ['owner', 'rescue_team', 'ngo', 'foster_home', 'veterinarian', 'finder'];
+    const allowedRoles = ['owner', 'finder', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
     const finalRole = allowedRoles.includes(role) ? role : 'owner';
 
     user = await User.create({

@@ -7,6 +7,7 @@
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
   }
   body {
     @apply font-sans text-ink dark:text-bone transition-colors duration-300;
@@ -17,12 +18,15 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-brass-500;
   }
+
+  /* Smooth scrollbar in dark mode */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-emerald-500/30 hover:bg-emerald-500/60; }
 }
 
 @layer components {
-  /* Signature element: pulsing signal rings for live-tracking status.
-     Color and speed change with the pet's status to carry real meaning:
-     moss = safe, brass = idle/foster, coral = lost/emergency. */
+  /* Signature element: pulsing signal rings for live-tracking status. */
   .signal-dot {
     @apply relative inline-flex h-3 w-3 rounded-full;
   }
@@ -39,7 +43,7 @@
     @apply animate-signal-slow;
   }
 
-  /* Pet-tag badge - evokes a physical collar ID tag / QR chip */
+  /* Pet-tag badge */
   .pet-tag {
     @apply inline-flex items-center gap-1.5 rounded-full border border-mist-300/60
       bg-white/70 px-3 py-1 font-mono text-xs tracking-wide text-ink
@@ -48,49 +52,86 @@
 
   .btn-primary {
     @apply inline-flex items-center justify-center rounded-full bg-moss-500 px-5 py-2.5
-      font-semibold text-bone transition-colors hover:bg-moss-600
+      font-semibold text-bone transition-all duration-200 hover:bg-moss-600 hover:scale-[1.03] active:scale-[0.97]
       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass-500
       disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center rounded-full border border-ink/15
-      px-5 py-2.5 font-semibold text-ink transition-colors hover:bg-ink/5
+      px-5 py-2.5 font-semibold text-ink transition-all duration-200 hover:bg-ink/5 hover:scale-[1.03] active:scale-[0.97]
       dark:border-bone/20 dark:text-bone dark:hover:bg-bone/10;
   }
   .btn-danger {
     @apply inline-flex items-center justify-center rounded-full bg-coral-500 px-5 py-2.5
-      font-semibold text-bone transition-colors hover:bg-coral-600;
+      font-semibold text-bone transition-all duration-200 hover:bg-coral-600 hover:scale-[1.03] active:scale-[0.97];
   }
 
   .card {
     @apply rounded-2xl border border-ink/10 bg-white/70 p-6 shadow-tag backdrop-blur-sm
-      dark:border-bone/10 dark:bg-ink-soft/70;
+      dark:border-bone/10 dark:bg-ink-soft/70 transition-all duration-200;
   }
 
   .input {
     @apply w-full rounded-xl border border-ink/15 bg-white/80 px-4 py-2.5 text-sm
       text-ink placeholder:text-mist-500 focus:border-moss-500 focus:outline-none
       focus:ring-2 focus:ring-moss-500/20 dark:border-bone/15 dark:bg-ink-soft
-      dark:text-bone;
+      dark:text-bone transition-all duration-200;
   }
 
   .label {
     @apply mb-1.5 block text-sm font-medium text-ink/80 dark:text-bone/80;
   }
-}
 
-@layer utilities {
-  @keyframes fadeInScale {
-    from {
-      opacity: 0;
-      transform: scale(0.92) translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
+  /* ── Animation utility classes ─────────────────────── */
+  .animate-fade-up {
+    animation: fadeUp 0.55s ease-out both;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out both;
+  }
+  .animate-slide-left {
+    animation: slideInLeft 0.55s ease-out both;
+  }
+  .animate-slide-right {
+    animation: slideInRight 0.55s ease-out both;
+  }
+  .animate-scale-in {
+    animation: scaleIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .animate-float {
+    animation: floatY 3s ease-in-out infinite;
+  }
+  .animate-float-slow {
+    animation: floatY 5s ease-in-out infinite;
+  }
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+    background-size: 200% 100%;
+  }
+  .animate-bounce-in {
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
   }
 
+  /* Stagger delay helpers */
+  .delay-75  { animation-delay: 75ms; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
+  .delay-700 { animation-delay: 700ms; }
+
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -99,9 +140,83 @@
   }
 }
 
+@layer utilities {
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-30px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(30px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.82); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-10px); }
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @keyframes bounceIn {
+    0%   { opacity: 0; transform: scale(0.3); }
+    50%  { opacity: 1; transform: scale(1.05); }
+    70%  { transform: scale(0.95); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.92) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* Pet collage pan animation for auth pages */
+  @keyframes panLeft {
+    0%   { transform: scale(1.08) translateX(0%); }
+    100% { transform: scale(1.08) translateX(-5%); }
+  }
+  @keyframes panRight {
+    0%   { transform: scale(1.08) translateX(-5%); }
+    100% { transform: scale(1.08) translateX(0%); }
+  }
+
+  .auth-pan-left  { animation: panLeft  18s ease-in-out alternate infinite; }
+  .auth-pan-right { animation: panRight 22s ease-in-out alternate infinite; }
+
+  /* Gradient shimmer for skeleton loaders */
+  .shimmer-bg {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
 /* Initialize dark mode from localStorage before React hydrates */
 @layer base {
   html.dark body {
-    @apply bg-ink text-bone;
+    @apply bg-slate-900 text-slate-100;
   }
 }

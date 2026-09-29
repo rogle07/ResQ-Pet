@@ -224,11 +224,11 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-gray-900 dark:bg-[#05130b] dark:text-white transition-colors duration-300 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-gray-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300 overflow-x-hidden">
       <Navbar />
 
       {/* ── Hero Section ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-slate-50 dark:bg-[#041109] transition-colors duration-300">
+      <section className="relative overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
         {/* Subtle decorative background glow */}
         <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-full max-w-7xl bg-emerald-400/5 dark:bg-emerald-500/10 blur-[100px]" />
 
@@ -237,13 +237,13 @@ const Home = () => {
             {/* Left Column: Headline, Description & CTAs */}
             <div className="lg:col-span-6 z-10 text-left">
               {/* Badge */}
-              <div className="mb-3.5 sm:mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 sm:px-4 py-1.5 text-xs font-semibold text-emerald-800 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <div className="mb-3.5 sm:mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-3 sm:px-4 py-1.5 text-xs font-semibold text-emerald-800 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300 animate-fade-in">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Pan-India Animal Rescue & IoT Tracking Network</span>
               </div>
 
               {/* Title */}
-              <h1 className="font-display text-3xl xs:text-4xl sm:text-5xl lg:text-[3.25rem] font-black leading-[1.15] tracking-tight text-gray-900 dark:text-white">
+              <h1 className="font-display text-3xl xs:text-4xl sm:text-5xl lg:text-[3.25rem] font-black leading-[1.15] tracking-tight text-gray-900 dark:text-white animate-fade-up">
                 Every Life Matters,<br />
                 <span className="text-emerald-600 dark:text-emerald-400">Every Rescue Counts</span>{' '}
                 <PawPrint className="inline h-7 w-7 xs:h-8 xs:w-8 sm:h-9 sm:w-9 text-emerald-600 dark:text-emerald-400 fill-current ml-1 align-baseline" />
@@ -255,17 +255,17 @@ const Home = () => {
               </p>
 
               {/* CTA Buttons - Stacked on mobile, inline on desktop */}
-              <div className="mt-6 sm:mt-8 flex flex-col xs:flex-row items-stretch xs:items-center gap-3">
+              <div className="mt-6 sm:mt-8 flex flex-col xs:flex-row items-stretch xs:items-center gap-3 animate-fade-up delay-200">
                 <Link
                   to="/track-pet"
-                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 sm:px-6 py-3 sm:py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 dark:shadow-emerald-950/50 transition-all hover:bg-emerald-500 active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 sm:px-6 py-3 sm:py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 dark:shadow-emerald-950/50 transition-all hover:bg-emerald-500 hover:scale-[1.03] active:scale-[0.98]"
                 >
                   <MapPin className="h-4 w-4 shrink-0" />
                   <span>Track Your Animal</span>
                 </Link>
                 <Link
                   to="/report-found-pet"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-3 sm:py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm transition-all dark:border-white/25 dark:bg-black/40 dark:text-white dark:hover:bg-black/60 active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-3 sm:py-3.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 shadow-sm transition-all dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 hover:scale-[1.03] active:scale-[0.98]"
                 >
                   <AlertTriangle className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0" />
                   <span>Report Lost Animal</span>
@@ -287,7 +287,7 @@ const Home = () => {
             </div>
 
             {/* Right Column: Animal Photo & Mobile-Safe Badging */}
-            <div className="lg:col-span-6 relative mt-2 lg:mt-0">
+            <div className="lg:col-span-6 relative mt-2 lg:mt-0 animate-slide-right">
               <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-xl dark:shadow-2xl border border-gray-200/80 dark:border-emerald-500/20 bg-emerald-950/10">
                 <img
                   src="/hero-animals.jpg"
@@ -298,19 +298,19 @@ const Home = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                 
                 {/* Floating Active Badge on Image Corner */}
-                <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 rounded-xl bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] sm:text-xs font-medium text-white flex items-center gap-2 border border-white/15">
+                <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 rounded-xl bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] sm:text-xs font-medium text-white flex items-center gap-2 border border-white/15 animate-fade-in delay-500">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
                   <span>Active Rescues Today in All Cities</span>
                 </div>
               </div>
 
-              {/* Motivational Quote - Clean responsive layout */}
-              <div className="mt-3 flex justify-center sm:justify-end">
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-gray-200 bg-white/95 px-4 py-2 shadow-sm dark:border-white/15 dark:bg-[#07180f] dark:shadow-md max-w-full">
+              {/* Motivational Quote */}
+              <div className="mt-3 flex justify-center sm:justify-end animate-fade-up delay-400">
+                <div className="inline-flex items-center gap-2.5 rounded-full border border-gray-200 bg-white/95 px-4 py-2 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:shadow-md max-w-full">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shrink-0 shadow-sm">
                     <PawPrint className="h-3.5 w-3.5 fill-current" />
                   </div>
-                  <span className="text-[11px] sm:text-xs font-medium text-gray-700 dark:text-white/90 truncate">
+                  <span className="text-[11px] sm:text-xs font-medium text-gray-700 dark:text-slate-200 truncate">
                     Small actions by many people change the world for animals.
                   </span>
                 </div>
@@ -322,14 +322,14 @@ const Home = () => {
 
       {/* ── Interactive City & Service Quick Finder ───────────────── */}
       <section className="mx-auto max-w-[1440px] px-3.5 sm:px-6 -mt-1 sm:-mt-2 mb-6 sm:mb-8">
-        <div className="rounded-2xl border border-emerald-500/30 bg-white p-4 sm:p-6 shadow-xl dark:border-emerald-500/30 dark:bg-[#081b11] transition-all">
+        <div className="rounded-2xl border border-emerald-500/30 bg-white p-4 sm:p-6 shadow-xl dark:border-emerald-500/20 dark:bg-slate-800 transition-all">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 mb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                 <Filter className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 Find Rescues, Animals & Teams in Your City
               </h2>
-              <p className="text-xs text-gray-500 dark:text-white/60">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 Select your city to view local rescues, adoptable pets, active foster homes, and rescue teams.
               </p>
             </div>
@@ -438,13 +438,13 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ── Stats Cards Grid (Clean Individual Cards) ─────────────── */}
+      {/* ── Stats Cards Grid ─────────────────────────────────────── */}
       <section className="mx-auto max-w-[1440px] px-3.5 sm:px-6 mb-6 sm:mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
-          {STATS.map((s) => (
+          {STATS.map((s, i) => (
             <div
               key={s.label}
-              className="flex flex-col justify-between rounded-2xl border border-gray-200/80 bg-white p-3.5 sm:p-4.5 shadow-sm dark:border-[#13301f] dark:bg-[#08190f] dark:shadow-md transition-all hover:border-emerald-500/30"
+              className={`flex flex-col justify-between rounded-2xl border border-gray-200/80 bg-white p-3.5 sm:p-4.5 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:shadow-md transition-all hover:border-emerald-500/30 hover:shadow-md animate-fade-up delay-${i * 75}`}
             >
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl ${s.iconBg}`}>
@@ -458,10 +458,10 @@ const Home = () => {
                 <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                   {s.value}
                 </div>
-                <div className="text-xs font-semibold text-gray-700 dark:text-white/80 leading-tight mt-0.5">
+                <div className="text-xs font-semibold text-gray-700 dark:text-slate-200 leading-tight mt-0.5">
                   {s.label}
                 </div>
-                <div className="text-[10px] text-gray-400 dark:text-white/40 mt-0.5 truncate">
+                <div className="text-[10px] text-gray-400 dark:text-slate-400 mt-0.5 truncate">
                   {s.sub}
                 </div>
               </div>
@@ -476,21 +476,21 @@ const Home = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <h2 className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-white">
+              <h2 className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100">
                 Comprehensive Rescue Services
               </h2>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-white/60 mt-0.5">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5">
               Everything needed to protect, locate, adopt, and rehabilitate animals in every community.
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
-          {FEATURES.map((f) => (
+          {FEATURES.map((f, i) => (
             <div
               key={f.title}
-              className={`group rounded-2xl border p-4 sm:p-5 transition-all shadow-sm hover:shadow-md flex flex-col justify-between ${f.cardBg}`}
+              className={`group rounded-2xl border p-4 sm:p-5 transition-all shadow-sm hover:shadow-lg hover:scale-[1.02] flex flex-col justify-between ${f.cardBg} animate-fade-up delay-${i * 75}`}
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -502,11 +502,11 @@ const Home = () => {
                   </span>
                 </div>
                 <h3 className={`mb-1.5 text-sm font-bold leading-snug ${f.titleColor}`}>{f.title}</h3>
-                <p className="mb-4 text-xs leading-relaxed text-gray-500 dark:text-white/60">{f.desc}</p>
+                <p className="mb-4 text-xs leading-relaxed text-gray-500 dark:text-slate-400">{f.desc}</p>
               </div>
               <Link
                 to={f.link}
-                className={`flex items-center gap-1.5 text-xs font-bold transition-colors mt-auto pt-2 border-t border-gray-100 dark:border-white/5 ${f.exploreColor}`}
+                className={`flex items-center gap-1.5 text-xs font-bold transition-colors mt-auto pt-2 border-t border-gray-100 dark:border-slate-700/50 ${f.exploreColor}`}
               >
                 <span>Explore Service</span>
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
@@ -524,8 +524,8 @@ const Home = () => {
               <PawPrint className="h-4 w-4 fill-current" />
             </div>
             <div>
-              <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white">Browse Animals by Category</h2>
-              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-white/60 hidden xs:block">Find pets available for adoption or registered in our safe system</p>
+              <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-slate-100">Browse Animals by Category</h2>
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-slate-400 hidden xs:block">Find pets available for adoption or registered in our safe system</p>
             </div>
           </div>
           <Link
@@ -538,11 +538,11 @@ const Home = () => {
         </div>
 
         <div className="grid grid-cols-2 xs:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-3">
-          {CATEGORIES.map((c) => (
+          {CATEGORIES.map((c, i) => (
             <Link
               key={c.label}
               to="/adoption"
-              className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md dark:border-[#13301f] dark:bg-[#091a10] dark:shadow-md transition-all hover:border-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]"
+              className={`group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:shadow-md transition-all hover:border-emerald-500/50 hover:scale-[1.04] active:scale-[0.98] animate-scale-in delay-${i * 50}`}
             >
               <div className="relative h-24 xs:h-28 w-full overflow-hidden bg-gray-100 dark:bg-black/40">
                 <img
@@ -557,8 +557,8 @@ const Home = () => {
                 </span>
               </div>
               <div className="p-2.5">
-                <div className="text-xs font-bold text-gray-900 dark:text-white">{c.label}</div>
-                <div className="text-[10px] text-gray-500 dark:text-white/50 mt-0.5 font-medium">{c.count}</div>
+                <div className="text-xs font-bold text-gray-900 dark:text-slate-100">{c.label}</div>
+                <div className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5 font-medium">{c.count}</div>
               </div>
             </Link>
           ))}
@@ -592,7 +592,7 @@ const Home = () => {
             {RECENT_RESCUES.map((r, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5 dark:border-white/5 dark:bg-black/30 flex flex-col justify-between"
+                className={`rounded-xl border border-gray-100 bg-gray-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-700/50 flex flex-col justify-between transition-all hover:shadow-md hover:scale-[1.02] animate-fade-up delay-${i * 100}`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
@@ -603,11 +603,11 @@ const Home = () => {
                       {r.status}
                     </span>
                   </div>
-                  <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white leading-snug line-clamp-2">
+                  <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-slate-100 leading-snug line-clamp-2">
                     {r.title}
                   </h4>
                 </div>
-                <div className="mt-3 pt-2 border-t border-gray-200/50 dark:border-white/5 flex items-center justify-between text-[10px] text-gray-500 dark:text-white/50">
+                <div className="mt-3 pt-2 border-t border-gray-200/50 dark:border-slate-600 flex items-center justify-between text-[10px] text-gray-500 dark:text-slate-400">
                   <span className="font-semibold">{r.tag}</span>
                   <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> {r.time}</span>
                 </div>
@@ -622,38 +622,38 @@ const Home = () => {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* 4 Feature Badges */}
           <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-            {BOTTOM_FEATURES.map((f) => (
+            {BOTTOM_FEATURES.map((f, i) => (
               <div
                 key={f.title}
-                className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-[#13301f] dark:bg-[#07180f]"
+                className={`flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 hover:shadow-md transition-all animate-fade-up delay-${i * 100}`}
               >
                 <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                   {f.icon}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-emerald-400">{f.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-white/60">{f.desc}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{f.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-slate-400">{f.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Emergency 24/7 Help Card */}
-          <div className="lg:col-span-2 flex flex-col justify-between rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-4 sm:p-5 shadow-sm dark:border-emerald-500/30 dark:bg-[#07180f]">
+          <div className="lg:col-span-2 flex flex-col justify-between rounded-2xl border border-emerald-300/80 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-4 sm:p-5 shadow-sm dark:border-emerald-500/30 dark:bg-slate-800">
             <div>
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-emerald-500 shrink-0 bg-emerald-950/40">
                   <img src="/buddy-puppy.jpg" alt="Rescue Mascot" className="h-full w-full object-cover" />
-                  <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-black" />
+                  <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-800" />
                 </div>
                 <div>
                   <span className="inline-block rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
                     24/7 Hotline
                   </span>
-                  <p className="text-sm sm:text-base font-bold text-gray-900 dark:text-white mt-0.5">Need Immediate Rescue Help?</p>
+                  <p className="text-sm sm:text-base font-bold text-gray-900 dark:text-slate-100 mt-0.5">Need Immediate Rescue Help?</p>
                 </div>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-white/70">
+              <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-slate-300">
                 Found an animal in critical danger or injured? Our verified rescue teams and volunteer network respond around the clock across all cities.
               </p>
             </div>
@@ -667,7 +667,7 @@ const Home = () => {
               </Link>
               <Link
                 to="/report-found-pet"
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 dark:border-white/20 dark:bg-black/40 dark:text-white"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
               >
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                 <span>Submit Report</span>
@@ -678,7 +678,7 @@ const Home = () => {
       </section>
 
       {/* ── Footer ────────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-200 bg-white py-8 dark:border-[#0f291a] dark:bg-[#041109] transition-colors duration-300">
+      <footer className="border-t border-gray-200 bg-white py-8 dark:border-slate-700 dark:bg-slate-900 transition-colors duration-300">
         <div className="mx-auto max-w-[1440px] px-3.5 sm:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6">
             <div>
@@ -686,16 +686,16 @@ const Home = () => {
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <PawPrint className="h-4 w-4 fill-current" />
                 </div>
-                <span className="font-display font-bold text-base text-gray-900 dark:text-white">ResQPet</span>
+                <span className="font-display font-bold text-base text-gray-900 dark:text-slate-100">ResQPet</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-white/60 leading-relaxed">
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
                 Smart IoT & AI ecosystem uniting pet parents, finders, rescue teams, foster homes, and veterinarians.
               </p>
             </div>
 
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white mb-2.5">Quick Links</h4>
-              <ul className="space-y-1.5 text-xs text-gray-600 dark:text-white/70">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 mb-2.5">Quick Links</h4>
+              <ul className="space-y-1.5 text-xs text-gray-600 dark:text-slate-300">
                 <li><Link to="/track-pet" className="hover:text-emerald-600 dark:hover:text-emerald-400">Live GPS Tracking</Link></li>
                 <li><Link to="/report-found-pet" className="hover:text-emerald-600 dark:hover:text-emerald-400">Report Lost Animal</Link></li>
                 <li><Link to="/adoption" className="hover:text-emerald-600 dark:hover:text-emerald-400">Pet Adoption</Link></li>
@@ -704,15 +704,15 @@ const Home = () => {
             </div>
 
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white mb-2.5">Network Coverage</h4>
-              <p className="text-xs text-gray-500 dark:text-white/60 leading-relaxed">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 mb-2.5">Network Coverage</h4>
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
                 Covering Haldwani, Dehradun, Nainital, Delhi NCR, Mumbai, Bengaluru, Hyderabad, Chennai, Kolkata, Pune, and 60+ cities across India.
               </p>
             </div>
 
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white mb-2.5">Emergency Help</h4>
-              <p className="text-xs text-gray-500 dark:text-white/60 mb-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-slate-100 mb-2.5">Emergency Help</h4>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
                 Rescue teams standing by 24 hours a day, 7 days a week.
               </p>
               <Link
@@ -724,7 +724,7 @@ const Home = () => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-gray-100 dark:border-white/5 text-center text-xs text-gray-500 dark:text-white/50 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="pt-6 border-t border-gray-100 dark:border-slate-700 text-center text-xs text-gray-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
             <p className="flex items-center justify-center gap-1.5">
               <PawPrint className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 fill-current" />
               Together, saving lives in every city across India.

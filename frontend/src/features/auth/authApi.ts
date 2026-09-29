@@ -17,7 +17,7 @@ export const authApi = {
     address?: { street?: string; city?: string; state?: string; zipCode?: string } | string;
   }) => api.post<AuthResponse>('/auth/register', payload).then((r) => r.data),
 
-  login: (payload: { email: string; password: string }) =>
+  login: (payload: { email: string; password: string; role?: string }) =>
     api.post<AuthResponse>('/auth/login', payload).then((r) => r.data),
 
   googleLogin: (

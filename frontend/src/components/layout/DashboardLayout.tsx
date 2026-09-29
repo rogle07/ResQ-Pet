@@ -39,6 +39,8 @@ import {
   Activity,
   PlusCircle,
   Award,
+  Building2,
+  Cpu,
 } from 'lucide-react';
 
 interface NavItem {
@@ -52,10 +54,13 @@ interface NavItem {
 const NAV_BY_ROLE: Record<string, NavItem[]> = {
   owner: [
     { to: '/owner', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, end: true },
-    { to: '/owner/pets', label: 'My Pets', icon: <Heart className="h-5 w-5" /> },
-    { to: '/owner/tracking', label: 'Pet Tracking', icon: <MapPin className="h-5 w-5" /> },
-    { to: '/owner/foster', label: 'Foster & Adoption', icon: <Home className="h-5 w-5" /> },
-    { to: '/owner/donations', label: 'Donations', icon: <DollarSign className="h-5 w-5" /> },
+    { to: '/owner/foster', label: 'Foster Care', icon: <Home className="h-5 w-5" /> },
+    { to: '/owner/adoption', label: 'Adoption', icon: <Heart className="h-5 w-5" /> },
+    { to: '/owner/ngo-shelter', label: 'NGO Shelter Care', icon: <Building2 className="h-5 w-5" /> },
+    { to: '/owner/rescue', label: 'Rescue Request', icon: <AlertTriangle className="h-5 w-5" /> },
+    { to: '/owner/found-pets', label: 'Found Pets Board', icon: <Search className="h-5 w-5" /> },
+    { to: '/owner/iot', label: 'ResQ Pet IoT', icon: <Cpu className="h-5 w-5" /> },
+    { to: '/owner/pets', label: 'My Pets', icon: <PawPrint className="h-5 w-5" /> },
     { to: '/owner/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
   ],
   rescue_team: [
@@ -117,6 +122,11 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { to: '/finder/resources', label: 'Resources', icon: <BookOpen className="h-4 w-4" /> },
     { to: '/finder/how-to-help', label: 'How to Help', icon: <Heart className="h-4 w-4" /> },
     { to: '/finder/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
+  ],
+  found_pet_reporter: [
+    { to: '/found-pet-reporter', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
+    { to: '/found-pet-reporter/my-reports', label: 'My Found Reports', icon: <FileText className="h-4 w-4" /> },
+    { to: '/found-pet-reporter/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
   ],
   donor: [
     { to: '/donor', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, end: true },

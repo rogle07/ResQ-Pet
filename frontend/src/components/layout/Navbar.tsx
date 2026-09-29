@@ -21,7 +21,7 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-md dark:border-[#0f291a] dark:bg-[#041109] dark:shadow-lg transition-colors duration-200">
+    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-lg transition-colors duration-200">
       <nav className="mx-auto flex max-w-[1440px] items-center justify-between px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3">
         {/* Logo */}
         <Link to="/" className="flex shrink-0 items-center gap-2">
@@ -29,10 +29,10 @@ const Navbar = () => {
             <PawPrint className="h-5 w-5 sm:h-6 sm:w-6 fill-current" />
           </div>
           <div>
-            <div className="font-display text-lg sm:text-xl font-bold leading-none text-gray-900 dark:text-white tracking-wide">
+            <div className="font-display text-lg sm:text-xl font-bold leading-none text-gray-900 dark:text-slate-100 tracking-wide">
               ResQPet
             </div>
-            <div className="text-[9px] leading-tight text-gray-500 dark:text-white/50 mt-0.5 hidden xs:block">
+            <div className="text-[9px] leading-tight text-gray-500 dark:text-slate-400 mt-0.5 hidden xs:block">
               AI & IoT Animal Rescue Ecosystem
             </div>
           </div>
@@ -49,7 +49,7 @@ const Navbar = () => {
                 `flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all whitespace-nowrap ${
                   isActive
                     ? 'border border-emerald-500/60 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/5 dark:hover:text-white'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-slate-100'
                 }`
               }
             >
@@ -65,7 +65,7 @@ const Navbar = () => {
           <Link
             to="/report-found-pet"
             aria-label="Notifications"
-            className="relative flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white transition-colors"
+            className="relative flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 transition-colors"
             title="Active Rescue Alerts"
           >
             <Bell className="h-4 w-4" />
@@ -78,7 +78,7 @@ const Navbar = () => {
           <button
             onClick={toggle}
             aria-label="Toggle dark mode"
-            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-gray-100 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-gray-800 transition-colors hover:bg-gray-200 dark:border-white/20 dark:bg-black/30 dark:text-white/90 dark:hover:bg-white/10"
+            className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-gray-100 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-gray-800 transition-colors hover:bg-gray-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             <div className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-yellow-500 dark:text-yellow-400">
@@ -110,7 +110,7 @@ const Navbar = () => {
           <button
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Toggle mobile menu"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 dark:text-white/70 dark:hover:bg-white/10 xl:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700 xl:hidden"
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -119,7 +119,7 @@ const Navbar = () => {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="border-t border-gray-200 bg-white/98 px-4 py-3 dark:border-[#0f291a] dark:bg-[#041109]/98 xl:hidden space-y-1 backdrop-blur-lg shadow-xl animate-fadeIn">
+        <div className="border-t border-gray-200 bg-white/98 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/98 xl:hidden space-y-1 backdrop-blur-lg shadow-xl animate-fadeIn">
           {navLinks.map((link) => (
             <NavLink
               key={link.label}
@@ -138,7 +138,7 @@ const Navbar = () => {
               {link.label}
             </NavLink>
           ))}
-          <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between px-2 text-xs text-gray-500 dark:text-white/50">
+          <div className="pt-2 mt-2 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between px-2 text-xs text-gray-500 dark:text-slate-400">
             <span>24/7 Animal Emergency: 1800-RESQ-PET</span>
             <Link to="/rescue-teams" onClick={() => setMobileOpen(false)} className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
               Call Team

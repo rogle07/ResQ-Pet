@@ -8,6 +8,7 @@ const {
   getFoundReports,
   getFoundReportById,
   claimFoundReport,
+  updateFoundReportStatus,
 } = require('../controllers/foundReportController');
 
 const router = express.Router();
@@ -20,8 +21,6 @@ router.post(
   [
     body('description').trim().notEmpty().withMessage('Description is required'),
     body('contactPhone').trim().notEmpty().withMessage('Contact phone is required'),
-    body('lat').isFloat().withMessage('Valid latitude required'),
-    body('lng').isFloat().withMessage('Valid longitude required'),
   ],
   validate,
   createFoundReport
@@ -30,5 +29,6 @@ router.post(
 router.get('/', getFoundReports);
 router.get('/:id', getFoundReportById);
 router.post('/:id/claim', claimFoundReport);
+router.put('/:id/status', updateFoundReportStatus);
 
 module.exports = router;

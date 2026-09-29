@@ -9,7 +9,7 @@ import type { ApiError, UserRole } from '@/types';
 import {
   PawPrint, User, Mail, Phone, Lock, Eye, EyeOff, MapPin,
   Shield, Users, Bell, Heart, CheckCircle, Search, Home as HomeIcon, AlertCircle,
-  Stethoscope, FileText, Sparkles
+  FileText, Sparkles, UserCheck
 } from 'lucide-react';
 import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 import { ALL_INDIAN_CITIES } from '@/utils/cities';
@@ -31,13 +31,14 @@ interface RegisterForm {
 }
 
 const ROLE_OPTIONS: { value: UserRole; label: string; icon: JSX.Element; badge?: string }[] = [
-  { value: 'owner', label: 'Pet Owner', icon: <PawPrint className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  { value: 'donor', label: 'Donor / Patron', icon: <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-current" />, badge: '80G Tax' },
-  { value: 'finder', label: 'Finder', icon: <Search className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  { value: 'rescue_team', label: 'Rescuer', icon: <Shield className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  { value: 'ngo', label: 'NGO / Shelter', icon: <Users className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  { value: 'veterinarian', label: 'Veterinarian', icon: <Stethoscope className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  { value: 'foster_home', label: 'Foster Home', icon: <HomeIcon className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'owner',              label: 'Pet Owner',           icon: <PawPrint className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'finder',             label: 'Finder',              icon: <Search className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'found_pet_reporter', label: 'Found Pet Reporter',  icon: <MapPin className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'rescue_team',        label: 'Rescuer / Rescue Team', icon: <Shield className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'ngo',                label: 'NGO / Shelter',        icon: <Users className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'adopter',            label: 'Adopter',              icon: <UserCheck className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'foster_home',        label: 'Foster Care Provider', icon: <HomeIcon className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'donor',              label: 'Donor / Patron',       icon: <Heart className="h-5 w-5 sm:h-6 sm:w-6 fill-current" />, badge: '80G Tax' },
 ];
 
 const features = [
@@ -113,83 +114,96 @@ const Register = () => {
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-ink">
-      {/* Left branding panel (desktop) */}
-      <div
-        className="relative hidden w-[38%] flex-col overflow-hidden lg:flex"
-        style={{
-          background: isDonor
-            ? 'linear-gradient(160deg, #ede9fe 0%, #ddd6fe 40%, #c4b5fd 100%)'
-            : 'linear-gradient(160deg, #e8f5e9 0%, #c8e6c9 40%, #a5d6a7 100%)',
-        }}
-      >
-        {/* Logo */}
-        <div className="relative z-10 p-8">
-          <Link to="/" className="flex items-center gap-2">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-2xl shadow-md ${isDonor ? 'bg-purple-700 text-white' : 'bg-green-600 text-white'}`}>
-              {isDonor ? <Heart className="h-6 w-6 fill-current" /> : <PawPrint className="h-6 w-6" />}
+      {/* Left branding panel — 4-pet animated collage */}
+      <div className="relative hidden w-[38%] flex-col overflow-hidden lg:flex">
+        {/* 2x2 photo collage */}
+        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+          {[
+            { src: '/animal-dog.jpg',    anim: 'auth-pan-left' },
+            { src: '/animal-cat.jpg',    anim: 'auth-pan-right' },
+            { src: '/animal-rabbit.jpg', anim: 'auth-pan-right' },
+            { src: '/animal-bird.jpg',   anim: 'auth-pan-left' },
+          ].map((pet, i) => (
+            <div key={i} className="relative overflow-hidden">
+              <img
+                src={pet.src}
+                alt="Pet"
+                className={`absolute inset-0 h-full w-full object-cover brightness-85 ${pet.anim}`}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Gradient overlay — adapts color by role */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: isDonor
+              ? 'linear-gradient(160deg,rgba(88,28,135,0.65) 0%,rgba(109,40,217,0.35) 50%,rgba(0,0,0,0.65) 100%)'
+              : 'linear-gradient(160deg,rgba(0,0,0,0.55) 0%,rgba(0,30,15,0.35) 50%,rgba(0,0,0,0.65) 100%)',
+          }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col h-full p-8">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 animate-fade-in">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl backdrop-blur-sm border ${
+              isDonor ? 'bg-purple-500/20 border-purple-400/30' : 'bg-emerald-500/20 border-emerald-400/30'
+            }`}>
+              {isDonor ? <Heart className="h-6 w-6 text-purple-300 fill-current" /> : <PawPrint className="h-6 w-6 text-emerald-300" />}
             </div>
             <div>
               <div className="font-display text-2xl font-bold text-white drop-shadow">ResQPet</div>
-              <div className="text-[10px] text-white/80">
+              <div className="text-[10px] text-white/60 tracking-wide">
                 {isDonor ? 'Animal Care • Donation Portal' : 'AI & IoT Powered Pet Rescue Ecosystem'}
               </div>
             </div>
           </Link>
-        </div>
 
-        {/* Content */}
-        <div className="relative flex-1">
-          <img
-            src="/auth-puppy.jpg"
-            alt="Cute puppy"
-            className="h-full w-full object-cover object-top"
-            style={{ maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' }}
-          />
-          <div className="absolute inset-0 flex flex-col justify-between p-8" style={{background:'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.55) 100%)'}}>
-            <div className="mt-4">
-              <h1 className="font-display text-4xl font-bold leading-tight text-white drop-shadow-lg">
-                {isDonor ? (
-                  <>
-                    Become a <span className="text-purple-300">ResQPet Patron</span><br />
-                    Save Voiceless Animals 💖
-                  </>
-                ) : (
-                  <>
-                    Join <span className="text-green-400">ResQPet</span><br />
-                    Make a Difference<br />for Pets in Need 🐾
-                  </>
-                )}
-              </h1>
-              <div className={`mt-2 h-1 w-12 rounded-full ${isDonor ? 'bg-purple-400' : 'bg-green-400'}`}></div>
-              <p className="mt-4 text-sm text-white/80 drop-shadow">
-                {isDonor
-                  ? 'Your generous contributions directly fund on-ground emergency animal rescues with 100% transparent audit trails & 80G tax benefits.'
-                  : 'Create your account and be part of a smart community that protects, rescues, and cares for pets.'}
-              </p>
-            </div>
+          {/* Hero text */}
+          <div className="mt-auto mb-auto pt-12">
+            <h1 className="font-display text-4xl font-black leading-tight text-white drop-shadow-lg animate-slide-left">
+              {isDonor ? (
+                <>Become a <span className="text-purple-300">Patron</span><br />Save Voiceless<br />Animals 💖</>
+              ) : (
+                <>Join <span className="text-emerald-300">ResQPet</span><br />Make a Difference<br />for Pets 🐾</>
+              )}
+            </h1>
+            <div className={`mt-3 h-1 w-16 rounded-full animate-fade-in delay-300 ${isDonor ? 'bg-purple-400' : 'bg-emerald-400'}`} />
+            <p className="mt-4 text-sm text-white/75 leading-relaxed animate-fade-in delay-400 max-w-xs">
+              {isDonor
+                ? 'Your contributions fund on-ground animal rescues with 80G tax benefits.'
+                : 'Create your account and protect, rescue, and care for pets in need.'}
+            </p>
+          </div>
 
-            {/* Feature cards */}
-            <div className="mb-4 space-y-2.5">
-              {features.map((f) => (
-                <div key={f.title} className="flex items-start gap-3 rounded-xl bg-black/40 backdrop-blur-sm px-4 py-3 shadow-sm border border-white/10">
-                  <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isDonor ? 'bg-purple-500/30 text-purple-300' : 'bg-green-500/20'}`}>
-                    {f.icon}
-                  </div>
-                  <div>
-                    <p className={`text-sm font-semibold ${isDonor ? 'text-purple-300' : 'text-green-400'}`}>{f.title}</p>
-                    <p className="text-xs text-white/70">{f.desc}</p>
-                  </div>
+          {/* Feature cards */}
+          <div className="mb-4 space-y-2">
+            {features.map((f, i) => (
+              <div
+                key={f.title}
+                className={`flex items-start gap-3 rounded-xl bg-black/50 backdrop-blur-md px-4 py-3 border border-white/10 animate-fade-up delay-${(i + 3) * 100}`}
+              >
+                <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                  isDonor ? 'bg-purple-500/25' : 'bg-emerald-500/25'
+                }`}>
+                  {f.icon}
                 </div>
-              ))}
-            </div>
+                <div>
+                  <p className={`text-xs font-bold ${ isDonor ? 'text-purple-300' : 'text-emerald-300'}`}>{f.title}</p>
+                  <p className="text-[11px] text-white/65">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            {/* Quote */}
-            <div className="flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-sm px-5 py-4 shadow-sm border border-white/10">
-              <Heart className={`h-4 w-4 shrink-0 ${isDonor ? 'text-purple-400' : 'text-green-400'}`} fill="currentColor" />
-              <p className="text-sm font-medium text-white/90">
-                {isDonor ? '"Every donation brings hope. Every heart makes a difference." 💖' : '"Be the reason a lost pet finds its way home." 🐾'}
-              </p>
-            </div>
+          {/* Quote */}
+          <div className="flex items-center gap-2 rounded-2xl bg-black/50 backdrop-blur-md px-5 py-3.5 border border-white/10 animate-fade-up delay-700">
+            <Heart className={`h-4 w-4 shrink-0 ${ isDonor ? 'text-purple-400' : 'text-emerald-400'}`} fill="currentColor" />
+            <p className="text-xs font-medium text-white/85">
+              {isDonor ? '"Every donation brings hope." 💖' : '"Be the reason a pet finds its way home." 🐾'}
+            </p>
           </div>
         </div>
       </div>
@@ -243,39 +257,44 @@ const Register = () => {
 
               {/* Role Selection Grid */}
               <div>
-                <span className="mb-2 block text-xs sm:text-sm font-medium text-ink/80 dark:text-bone/80">I am registering as</span>
-                <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                <span className="mb-2 block text-xs sm:text-sm font-medium text-ink/80 dark:text-slate-300">I am registering as</span>
+                <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-4 xl:grid-cols-8 gap-2">
                   {ROLE_OPTIONS.map((opt) => {
                     const isSelected = selectedRole === opt.value;
+                    const isDonorOpt = opt.value === 'donor';
+
                     return (
                       <button
                         type="button"
                         key={opt.value}
+                        title={opt.label}
                         onClick={() => setValue('role', opt.value, { shouldDirty: true, shouldValidate: true })}
-                        className={`group relative flex flex-col items-center gap-1 rounded-xl border-2 p-2 sm:py-2.5 text-center transition-all ${
+                        className={`group relative flex flex-col items-center gap-1.5 rounded-xl p-2 sm:py-2.5 text-center transition-all duration-200 ${
                           isSelected
-                            ? opt.value === 'donor'
-                              ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-sm'
-                              : 'border-moss-600 bg-moss-50 dark:bg-moss-900/20 text-moss-700 dark:text-moss-300 shadow-sm'
-                            : 'border-ink/10 dark:border-bone/10 text-ink/60 dark:text-bone/60 hover:border-moss-300 dark:hover:border-moss-700'
+                            ? isDonorOpt
+                              ? 'border-2 border-purple-600 dark:border-purple-400 bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 shadow-sm dark:shadow-purple-950/50 ring-1 ring-purple-500/20'
+                              : 'border-2 border-emerald-600 dark:border-emerald-500 bg-emerald-50/90 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 shadow-sm dark:shadow-emerald-950/50 ring-1 ring-emerald-500/20'
+                            : 'border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:border-emerald-300 dark:hover:border-emerald-700/60 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                       >
                         {isSelected && (
-                          <CheckCircle
-                            className={`absolute -right-1 -top-1 h-3.5 w-3.5 ${
-                              opt.value === 'donor'
-                                ? 'text-purple-600 fill-purple-600'
-                                : 'text-moss-600 fill-moss-600'
-                            } bg-white dark:bg-ink rounded-full`}
-                          />
+                          <div
+                            className={`absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full ${
+                              isDonorOpt
+                                ? 'bg-purple-600 dark:bg-purple-400 text-white dark:text-slate-950 ring-2 ring-white dark:ring-slate-900'
+                                : 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 ring-2 ring-white dark:ring-slate-900'
+                            }`}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 fill-current" />
+                          </div>
                         )}
                         <div
-                          className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full ${
+                          className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-colors ${
                             isSelected
-                              ? opt.value === 'donor'
+                              ? isDonorOpt
                                 ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300'
-                                : 'bg-moss-100 dark:bg-moss-800/30'
-                              : 'bg-ink/5 dark:bg-bone/5'
+                                : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:bg-emerald-50/60 dark:group-hover:bg-emerald-950/40 shadow-xs'
                           }`}
                         >
                           {opt.icon}

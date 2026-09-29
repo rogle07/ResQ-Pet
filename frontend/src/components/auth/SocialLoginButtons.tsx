@@ -43,7 +43,10 @@ declare global {
 
 // ---------- Env vars ----------
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_ID =
+  (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ||
+  (import.meta.env.GOOGLE_CLIENT_ID as string) ||
+  '';
 
 // ---------- Props ----------
 

@@ -21,8 +21,13 @@ import OwnerPets from '@/pages/owner/OwnerPets';
 import PetProfile from '@/pages/owner/PetProfile';
 import OwnerTracking from '@/pages/owner/OwnerTracking';
 import OwnerFoster from '@/pages/owner/OwnerFoster';
+import OwnerAdoption from '@/pages/owner/OwnerAdoption';
+import OwnerNgoShelter from '@/pages/owner/OwnerNgoShelter';
+import OwnerRescue from '@/pages/owner/OwnerRescue';
+import OwnerIoT from '@/pages/owner/OwnerIoT';
 import OwnerDonations from '@/pages/owner/OwnerDonations';
 import OwnerSettings from '@/pages/owner/OwnerSettings';
+import OwnerFoundPets from '@/pages/owner/OwnerFoundPets';
 
 import RescueTeamOverview from '@/pages/rescueTeam/RescueTeamOverview';
 import RescueTeamRequests from '@/pages/rescueTeam/RescueTeamRequests';
@@ -82,6 +87,10 @@ import FinderResources from '@/pages/finder/FinderResources';
 import FinderHowToHelp from '@/pages/finder/FinderHowToHelp';
 import FinderSettings from '@/pages/finder/FinderSettings';
 
+import FoundPetReporterOverview from '@/pages/foundPetReporter/FoundPetReporterOverview';
+import FoundPetReporterMyReports from '@/pages/foundPetReporter/FoundPetReporterMyReports';
+import FoundPetReporterSettings from '@/pages/foundPetReporter/FoundPetReporterSettings';
+
 import DonorOverview from '@/pages/donor/DonorOverview';
 import DonorDonate from '@/pages/donor/DonorDonate';
 import DonorMyDonations from '@/pages/donor/DonorMyDonations';
@@ -124,8 +133,13 @@ function App() {
               <Route index element={<OwnerOverview />} />
               <Route path="pets" element={<OwnerPets />} />
               <Route path="pets/:id" element={<PetProfile />} />
-              <Route path="tracking" element={<OwnerTracking />} />
               <Route path="foster" element={<OwnerFoster />} />
+              <Route path="adoption" element={<OwnerAdoption />} />
+              <Route path="ngo-shelter" element={<OwnerNgoShelter />} />
+              <Route path="rescue" element={<OwnerRescue />} />
+              <Route path="found-pets" element={<OwnerFoundPets />} />
+              <Route path="iot" element={<OwnerIoT />} />
+              <Route path="tracking" element={<OwnerTracking />} />
               <Route path="donations" element={<OwnerDonations />} />
               <Route path="settings" element={<OwnerSettings />} />
             </Route>
@@ -211,6 +225,15 @@ function App() {
               <Route path="resources" element={<FinderResources />} />
               <Route path="how-to-help" element={<FinderHowToHelp />} />
               <Route path="settings" element={<FinderSettings />} />
+            </Route>
+          </Route>
+
+          {/* Found Pet Reporter */}
+          <Route element={<ProtectedRoute allowedRoles={['found_pet_reporter', 'admin']} />}>
+            <Route path="/found-pet-reporter" element={<DashboardLayout />}>
+              <Route index element={<FoundPetReporterOverview />} />
+              <Route path="my-reports" element={<FoundPetReporterMyReports />} />
+              <Route path="settings" element={<FoundPetReporterSettings />} />
             </Route>
           </Route>
 

@@ -1,12 +1,14 @@
 export type UserRole =
   | 'owner'
+  | 'finder'
+  | 'found_pet_reporter'
   | 'rescue_team'
   | 'ngo'
+  | 'adopter'
   | 'foster_home'
-  | 'veterinarian'
-  | 'finder'
   | 'donor'
-  | 'admin';
+  | 'admin'
+  | 'veterinarian';
 
 export interface User {
   _id: string;
@@ -20,8 +22,8 @@ export interface User {
   isActive?: boolean;
   ngoDetails?: { organizationName?: string; verified?: boolean };
   rescueTeamDetails?: { teamName?: string; verified?: boolean };
-  veterinarianDetails?: { clinicName?: string; verified?: boolean };
   fosterHomeDetails?: { capacity?: number; verified?: boolean };
+  veterinarianDetails?: { clinicName?: string; licenseNumber?: string; verified?: boolean };
 }
 
 export interface ApiError {
@@ -94,4 +96,40 @@ export interface GpsLogEntry {
   temperatureC?: number;
   insideSafeZone: boolean;
   recordedAt: string;
+}
+
+export type FoundReportStatus =
+  | 'pending'
+  | 'under_review'
+  | 'owner_match_found'
+  | 'rescue_assigned'
+  | 'reunited'
+  | 'closed'
+  | 'unclaimed'
+  | 'matched'
+  | 'claimed';
+
+export interface FoundReport {
+  _id: string;
+  reportedBy: { _id: string; name: string; phone?: string; email?: string };
+  matchedPet?: { _id: string; name: string; species: string; images: { url: string }[]; owner: string };
+  photos: { url: string; publicId?: string }[];
+  description: string;
+  contactPhone: string;
+  location: {
+    lat: number;
+    lng: number;
+    address?: string;
+  };
+  foundAt: string;
+  timeFound?: string;
+  species: string;
+  breed?: string;
+  approximateAge?: string;
+  gender?: 'male' | 'female' | 'unknown';
+  currentPetLocation?: string;
+  condition?: string;
+  additionalNotes?: string;
+  status: FoundReportStatus;
+  createdAt: string;
 }
