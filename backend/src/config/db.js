@@ -5,7 +5,8 @@ const connectDB = async () => {
   try {
     mongoose.set('strictQuery', true);
 
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
+    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/petguardian';
+    const conn = await mongoose.connect(mongoUri, {
       autoIndex: process.env.NODE_ENV !== 'production',
     });
 
