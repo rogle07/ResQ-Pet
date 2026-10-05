@@ -27,8 +27,8 @@ router.post(
 
 router.get('/', getFosterRequests);
 router.get('/:id', getFosterRequestById);
-router.post('/:id/accept', authorize('foster_home', 'admin'), acceptFosterRequest);
-router.post('/:id/reject', authorize('foster_home', 'admin'), rejectFosterRequest);
+router.post('/:id/accept', authorize('foster_home', 'owner', 'admin'), acceptFosterRequest);
+router.post('/:id/reject', authorize('foster_home', 'owner', 'admin'), rejectFosterRequest);
 router.put('/:id/schedule-pickup', schedulePickup);
 router.post(
   '/:id/messages',

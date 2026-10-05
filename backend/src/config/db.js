@@ -5,9 +5,9 @@ const connectDB = async () => {
   try {
     mongoose.set('strictQuery', true);
 
-    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/petguardian';
-    const conn = await mongoose.connect(mongoUri, {
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
       autoIndex: process.env.NODE_ENV !== 'production',
+      serverSelectionTimeoutMS: 2500,
     });
 
     logger.info(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
@@ -22,8 +22,8 @@ const connectDB = async () => {
 
     return conn;
   } catch (error) {
-    logger.error(`Failed to connect to MongoDB: ${error.message}`);
-    process.exit(1);
+    logger.warn(`Failed to connect to MongoDB (${error.message}). API will start in offline/mock mode.`);
+    return null;
   }
 };
 

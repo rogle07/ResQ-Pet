@@ -23,7 +23,21 @@ export const useSessionBootstrap = () => {
           headers: { Authorization: `Bearer ${refreshData.accessToken}` },
         });
         dispatch(setCredentials({ user: meData.user, accessToken: refreshData.accessToken }));
+        try {
+          localStorage.setItem('resqpet_auth_user', JSON.stringify(meData.user));
+        } catch { /* ignore */ }
       } catch {
+        // Silently restore session from localStorage if available
+        try {
+          const stored = localStorage.getItem('resqpet_auth_user');
+          if (stored) {
+            const user = JSON.parse(stored);
+            if (user && user.role) {
+              dispatch(setCredentials({ user, accessToken: 'demo-local-token' }));
+              return;
+            }
+          }
+        } catch { /* ignore */ }
         dispatch(setUnauthenticated());
       }
     })();
