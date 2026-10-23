@@ -1,53 +1,106 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { fosterApi, type FosterRequest } from '@/features/foster/fosterApi';
+import { fosterApi } from '@/features/foster/fosterApi';
+import { donationApi } from '@/features/donations/donationApi';
 import { petApi } from '@/features/pets/petApi';
+import { openRazorpayCheckout, RAZORPAY_KEY_ID } from '@/utils/razorpay';
 import { useAppSelector } from '@/app/hooks';
-import type { Pet } from '@/types';
 import Modal from '@/components/ui/Modal';
 import {
-  Home,
-  PlusCircle,
+  Plus,
   Calendar,
   Clock,
   CheckCircle2,
   AlertCircle,
-  Info,
-  Send,
-  Heart,
-  MessageCircle,
-  Shield,
-  Syringe,
+  ShieldCheck,
   ChevronRight,
-  Users,
-  Check,
   FileText,
+  CreditCard,
+  Printer,
+  Lock,
+  PawPrint,
+  IndianRupee,
   Phone,
-  XCircle,
+  User,
+  Sparkles,
 } from 'lucide-react';
 
-/* ── Dropdown options for reasons ──────────────────────── */
-const REASON_OPTIONS = [
-  'Travel / Vacation',
-  'Health Treatment',
-  'Home Renovation',
-  'Work Relocation',
-  'Emergency / Crisis',
-  'Pet Medical Recovery',
-  'Temporary Housing Issue',
-  'Other',
-];
-
-interface FosterFormValues {
-  petId: string;
-  reason: string;
-  startDate: string;
-  endDate: string;
-  additionalNotes: string;
+/* ── Community Feedback Definitions ────────────────────────────────────── */
+export interface CommunityFeedbackItem {
+  id: string;
+  name: string;
+  rating: number;
+  timeAgo: string;
+  comment: string;
+  avatar: string;
+  verified: boolean;
 }
 
-/* ── Default initial pets matching reference image ──────── */
-const INITIAL_MOCK_PETS: Pet[] = [
+const INITIAL_COMMUNITY_FEEDBACK: CommunityFeedbackItem[] = [
+  {
+    id: 'fb-1',
+    name: 'Neha Sharma',
+    rating: 5,
+    timeAgo: '2 weeks ago',
+    comment:
+      'ResQPet made it so easy to find a foster home for my dog. The process was smooth and supportive. Thank you!',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    verified: true,
+  },
+  {
+    id: 'fb-2',
+    name: 'Rohit Mehta',
+    rating: 5,
+    timeAgo: '3 weeks ago',
+    comment:
+      'I was able to send a foster request quickly and got a response within a day. Great platform for pet lovers!',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    verified: true,
+  },
+  {
+    id: 'fb-3',
+    name: 'Priya Singh',
+    rating: 5,
+    timeAgo: '1 month ago',
+    comment:
+      'Fostering through ResQPet was a wonderful experience. The support team is very helpful and caring.',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    verified: true,
+  },
+];
+
+/* ── Reason Options for Dropdown ────────────────────────────────────────── */
+const REASON_OPTIONS = [
+  'Work travel',
+  'Home relocation',
+  'Temporary medical treatment',
+  'Family emergency',
+  'Home renovation',
+  'Vacation / Personal trip',
+  'Pet medical recovery',
+  'Other personal reason',
+];
+
+/* ── Initial Mock Pets matching screenshot ──────────────────────────────── */
+const INITIAL_MOCK_PETS: any[] = [
+  {
+    _id: 'mock-pet-bittu',
+    petId: 'PET-BITTU-05',
+    owner: 'user-owner',
+    name: 'bittu',
+    species: 'cat',
+    breed: 'Ragdoll',
+    age: 4,
+    gender: 'female',
+    images: [{ url: '/pets/cat_tabby.jpg', publicId: 'pet-bittu' }],
+    vaccinations: [{ name: 'Rabies & FVRCP', dateGiven: '2025-02-10' }],
+    medicalConditions: [],
+    collar: { isActive: false },
+    safeZone: { enabled: false, radiusMeters: 200 },
+    status: 'safe',
+    healthStatus: 'Healthy',
+    createdAt: new Date().toISOString(),
+  },
   {
     _id: 'mock-pet-bruno',
     petId: 'PET-BRUNO-01',
@@ -57,12 +110,13 @@ const INITIAL_MOCK_PETS: Pet[] = [
     breed: 'Golden Retriever',
     age: 2,
     gender: 'male',
-    images: [{ url: '/pet-bruno.jpg', publicId: 'pet-bruno' }],
+    images: [{ url: '/pets/dog_golden.jpg', publicId: 'pet-bruno' }],
     vaccinations: [{ name: 'Rabies & DHPP', dateGiven: '2025-01-10' }],
     medicalConditions: [],
     collar: { isActive: true },
     safeZone: { enabled: true, radiusMeters: 500 },
     status: 'safe',
+    healthStatus: 'Healthy',
     createdAt: new Date().toISOString(),
   },
   {
@@ -74,12 +128,13 @@ const INITIAL_MOCK_PETS: Pet[] = [
     breed: 'Domestic Shorthair',
     age: 1,
     gender: 'male',
-    images: [{ url: '/pet-milo.jpg', publicId: 'pet-milo' }],
+    images: [{ url: '/pets/cat_tabby.jpg', publicId: 'pet-milo' }],
     vaccinations: [{ name: 'FVRCP', dateGiven: '2025-02-15' }],
     medicalConditions: [],
     collar: { isActive: false },
     safeZone: { enabled: false, radiusMeters: 200 },
     status: 'safe',
+    healthStatus: 'Healthy',
     createdAt: new Date().toISOString(),
   },
   {
@@ -87,46 +142,48 @@ const INITIAL_MOCK_PETS: Pet[] = [
     petId: 'PET-LUNA-03',
     owner: 'user-owner',
     name: 'Luna',
-    species: 'dog',
-    breed: 'Beagle',
-    age: 3,
+    species: 'other',
+    breed: 'Angora Rabbit',
+    age: 1,
     gender: 'female',
-    images: [{ url: '/animal-dog.jpg', publicId: 'pet-luna' }],
-    vaccinations: [{ name: 'Rabies', dateGiven: '2025-03-01' }],
-    medicalConditions: [],
-    collar: { isActive: true },
-    safeZone: { enabled: true, radiusMeters: 300 },
-    status: 'safe',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: 'mock-pet-mia',
-    petId: 'PET-MIA-04',
-    owner: 'user-owner',
-    name: 'Mia',
-    species: 'cat',
-    breed: 'Siamese Mix',
-    age: 1, // 4 months
-    gender: 'female',
-    images: [{ url: '/animal-cat.jpg', publicId: 'pet-mia' }],
-    vaccinations: [],
+    images: [{ url: '/pets/rabbit_white.jpg', publicId: 'pet-luna' }],
+    vaccinations: [{ name: 'Myxomatosis', dateGiven: '2025-03-01' }],
     medicalConditions: [],
     collar: { isActive: false },
     safeZone: { enabled: false, radiusMeters: 100 },
     status: 'safe',
+    healthStatus: 'Healthy',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock-pet-coco',
+    petId: 'PET-COCO-04',
+    owner: 'user-owner',
+    name: 'Coco',
+    species: 'dog',
+    breed: 'Beagle',
+    age: 1,
+    gender: 'female',
+    images: [{ url: '/pets/dog_beagle.jpg', publicId: 'pet-coco' }],
+    vaccinations: [{ name: 'Multi-vax', dateGiven: '2025-02-01' }],
+    medicalConditions: [],
+    collar: { isActive: false },
+    safeZone: { enabled: false, radiusMeters: 500 },
+    status: 'safe',
+    healthStatus: 'Healthy',
     createdAt: new Date().toISOString(),
   },
 ];
 
-/* ── Default initial requests matching reference image ──── */
-const INITIAL_MOCK_REQUESTS: FosterRequest[] = [
+/* ── Initial Mock Requests ──────────────────────────────────────────────── */
+const INITIAL_MOCK_REQUESTS: any[] = [
   {
     _id: 'req-bruno-01',
     pet: {
       _id: 'mock-pet-bruno',
       name: 'Bruno',
       species: 'dog',
-      images: [{ url: '/pet-bruno.jpg' }],
+      images: [{ url: '/pets/dog_golden.jpg' }],
     },
     requestedBy: {
       _id: 'user-owner',
@@ -134,13 +191,20 @@ const INITIAL_MOCK_REQUESTS: FosterRequest[] = [
       phone: '+91 98765 43210',
     },
     fosterProvider: undefined,
-    reason: 'Reason: Travel / Vacation\nDates: 2025-08-15 to 2025-08-25\nNotes: Bruno loves morning walks and requires regular kibble twice a day.',
-    durationDays: 10,
+    reason: 'Reason: Travel / Vacation\nDuration: 8 days\nDates: 12 Aug 2025 - 20 Aug 2025\nOffered Care Charges: ₹3500\n[Care Escrow Paid: ₹3500 via Razorpay (Txn ID: RZP-pay_demo_77192)]\nNotes: Bruno loves daily walks and requires regular kibble twice daily.',
+    durationDays: 8,
     status: 'pending',
+    paidAmount: 3500,
+    paymentId: 'RZP-pay_demo_77192',
+    paymentStatus: 'paid',
+    locationSharingEnabled: false,
+    ownerReturnNotified: false,
+    readyForReturn: false,
+    ownerConfirmed: false,
     messages: [
       {
         sender: { _id: 'user-owner', name: 'Suraj Kumar' },
-        text: 'Request submitted for temporary foster care while I am traveling for 10 days.',
+        text: 'Request submitted for temporary foster care. ₹3500 care charges secured via Razorpay.',
         sentAt: '2025-08-12T10:30:00.000Z',
       },
     ],
@@ -152,7 +216,7 @@ const INITIAL_MOCK_REQUESTS: FosterRequest[] = [
       _id: 'mock-pet-milo',
       name: 'Milo',
       species: 'cat',
-      images: [{ url: '/pet-milo.jpg' }],
+      images: [{ url: '/pets/cat_tabby.jpg' }],
     },
     requestedBy: {
       _id: 'user-owner',
@@ -160,12 +224,19 @@ const INITIAL_MOCK_REQUESTS: FosterRequest[] = [
       phone: '+91 98765 43210',
     },
     fosterProvider: {
-      _id: 'foster-provider-01',
+      _id: 'foster-sarah-jenkins',
       name: 'Sarah Jenkins (Green Meadows Sanctuary)',
     },
-    reason: 'Reason: Health Treatment\nDates: 2025-08-05 to 2025-08-20\nNotes: Post-treatment recovery care needed. Milo is gentle and calm.',
-    durationDays: 15,
+    reason: 'Reason: Health Treatment\nDuration: 8 days\nDates: 02 Aug 2025 - 10 Aug 2025\nOffered Care Charges: ₹1500\nNotes: Post-treatment recovery care needed. Milo is calm and gentle.',
+    durationDays: 8,
     status: 'accepted',
+    paidAmount: 1500,
+    paymentId: 'RZP-pay_demo_88201',
+    paymentStatus: 'paid',
+    locationSharingEnabled: false,
+    ownerReturnNotified: false,
+    readyForReturn: false,
+    ownerConfirmed: false,
     messages: [
       {
         sender: { _id: 'user-owner', name: 'Suraj Kumar' },
@@ -173,129 +244,110 @@ const INITIAL_MOCK_REQUESTS: FosterRequest[] = [
         sentAt: '2025-08-02T09:15:00.000Z',
       },
       {
-        sender: { _id: 'foster-provider-01', name: 'Sarah Jenkins' },
-        text: 'We are delighted to welcome Milo! Our quiet feline recovery suite is all prepped.',
+        sender: { _id: 'foster-sarah-jenkins', name: 'Sarah Jenkins' },
+        text: 'We are delighted to welcome Milo! Our quiet feline suite is all set.',
         sentAt: '2025-08-02T14:20:00.000Z',
       },
     ],
     createdAt: '2025-08-02T09:15:00.000Z',
   },
-];
-
-/* ── Pet Care Tips details for interactive click ────────── */
-const PET_CARE_TIPS = [
   {
-    id: 'health',
-    icon: <FileText className="h-4 w-4 text-emerald-600" />,
-    text: "Keep your pet's health records updated.",
-    title: 'Update Health & Vaccination Records',
-    description:
-      'Always provide complete vaccination proof, recent vet prescriptions, and diet history to the foster home before placement. This ensures your pet continues their routine without health interruptions.',
-  },
-  {
-    id: 'trust',
-    icon: <Shield className="h-4 w-4 text-emerald-600" />,
-    text: 'Choose a foster home you trust.',
-    title: 'Verified Foster Home Network',
-    description:
-      'All foster homes on ResQPet are identity-verified and inspected. Review their caregiver profile, reviews, and space availability to find the most fitting environment for your pet.',
-  },
-  {
-    id: 'vaccine',
-    icon: <Syringe className="h-4 w-4 text-emerald-600" />,
-    text: 'Make sure your pet is vaccinated.',
-    title: 'Essential Vaccinations & Parasite Protection',
-    description:
-      'Ensure rabies, distemper, DHPP (for dogs) and FVRCP (for cats) are up-to-date. Administer flea/tick prevention at least 48 hours prior to the foster start date.',
-  },
-  {
-    id: 'touch',
-    icon: <MessageCircle className="h-4 w-4 text-emerald-600" />,
-    text: 'Stay in touch with the foster family.',
-    title: 'Continuous Communication & Updates',
-    description:
-      'Use ResQPet direct messaging to receive daily photo updates, feeding confirmations, and peace-of-mind check-ins from your foster provider.',
+    _id: 'req-luna-03',
+    pet: {
+      _id: 'mock-pet-luna',
+      name: 'Luna',
+      species: 'other',
+      images: [{ url: '/pets/rabbit_white.jpg' }],
+    },
+    requestedBy: {
+      _id: 'user-owner',
+      name: 'Suraj Kumar',
+      phone: '+91 98765 43210',
+    },
+    fosterProvider: undefined,
+    reason: 'Reason: Family Emergency\nDuration: 10 days\nDates: 05 Aug 2025 - 15 Aug 2025\nNotes: Urgent care required due to family emergency travel.',
+    durationDays: 10,
+    status: 'rejected',
+    locationSharingEnabled: false,
+    ownerReturnNotified: false,
+    readyForReturn: false,
+    ownerConfirmed: false,
+    messages: [
+      {
+        sender: { _id: 'user-owner', name: 'Suraj Kumar' },
+        text: 'Family emergency, seeking foster care for 10 days.',
+        sentAt: '2025-08-05T08:00:00.000Z',
+      },
+    ],
+    createdAt: '2025-08-05T08:00:00.000Z',
   },
 ];
 
-/* ── Extract short reason label for table ───────────────── */
-const extractShortReason = (reason?: string) => {
-  if (!reason) return '—';
-  const firstLine = reason.split('\n')[0];
-  if (firstLine.startsWith('Reason: ')) return firstLine.slice(8);
-  return firstLine.length > 25 ? firstLine.slice(0, 25) + '…' : firstLine;
-};
+/* ── Foster Care Escrow Packages for Payment Gateway ────────────────────── */
+export const FOSTER_PAYMENT_PACKAGES = [
+  {
+    id: 'foster_daily_care',
+    label: 'Daily Care & Feeding Allowance',
+    amount: 499,
+    tag: 'Standard',
+    desc: 'Nutritious meals, fresh bedding, and verified foster home daily care allowance.',
+  },
+  {
+    id: 'foster_medical_escrow',
+    label: 'Medical & Vet Contingency Escrow',
+    amount: 999,
+    tag: 'Recommended',
+    desc: 'Emergency veterinary checkups, vaccination updates & 24/7 tele-vet escrow reserve.',
+  },
+  {
+    id: 'foster_care_charges_3500',
+    label: '14-Day Full Foster Care Package',
+    amount: 3500,
+    tag: 'Most Popular',
+    desc: 'Two weeks complete foster accommodation, meal routine, play sessions & photo check-ins.',
+  },
+  {
+    id: 'foster_full_care',
+    label: 'Complete 30-Day Fostering Deposit',
+    amount: 5000,
+    tag: 'All-Inclusive',
+    desc: 'Full month accommodation, grooming, health monitoring & priority home placement.',
+  },
+];
 
-/* ── Format date as '12 Aug 2025' matching screenshot ──── */
-const formatDateDisplay = (dateString?: string) => {
-  if (!dateString) return '—';
-  try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return dateString;
-  }
-};
+export interface FosterFormValues {
+  petId: string;
+  ownerName: string;
+  contactInfo: string;
+  durationDays: number | '';
+  offeredCharges: number | '';
+  reason: string;
+  startDate: string;
+  endDate: string;
+  additionalNotes: string;
+}
 
-/* ── Render custom status badge matching screenshot ───── */
-const renderStatusBadge = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'pending':
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#fef3c7] text-[#b45309] dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/40">
-          Pending
-        </span>
-      );
-    case 'approved':
-    case 'accepted':
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#dcfce7] text-[#15803d] dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/40">
-          Approved
-        </span>
-      );
-    case 'active':
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/40">
-          Active
-        </span>
-      );
-    case 'completed':
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-          Completed
-        </span>
-      );
-    case 'rejected':
-    case 'cancelled':
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/40">
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 capitalize">
-          {status}
-        </span>
-      );
-  }
-};
+export interface PaymentReceiptData {
+  id: string;
+  txnId: string;
+  petName: string;
+  amount: number;
+  serviceType: string;
+  date: string;
+  invoiceNumber: string;
+  method: string;
+}
 
-/* ═════════════════════════════════════════════════════════
-   OWNER FOSTER PAGE COMPONENT
-═════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════════════════
+   OWNER FOSTER COMPONENT
+═════════════════════════════════════════════════════════════ */
 const OwnerFoster = () => {
   const currentUser = useAppSelector((s) => s.auth.user);
 
-  // Requests state initialized with localStorage or mock data
-  const [requests, setRequests] = useState<FosterRequest[]>(() => {
+  // Requests state
+  const [requests, setRequests] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem('resqpet_foster_requests');
+      const saved = localStorage.getItem('resqpet_foster_requests_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -304,10 +356,10 @@ const OwnerFoster = () => {
     return INITIAL_MOCK_REQUESTS;
   });
 
-  // Pets state initialized with localStorage or mock data
-  const [pets, setPets] = useState<Pet[]>(() => {
+  // Pets state
+  const [pets, setPets] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem('resqpet_owner_pets');
+      const saved = localStorage.getItem('resqpet_owner_pets_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -316,189 +368,297 @@ const OwnerFoster = () => {
     return INITIAL_MOCK_PETS;
   });
 
-  const [loading, setLoading] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState<string>(() => INITIAL_MOCK_PETS[0]._id);
-  const [activeDetail, setActiveDetail] = useState<FosterRequest | null>(null);
+  const [activeDetail, setActiveDetail] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
+  const [showAllRequests, setShowAllRequests] = useState(false);
   const [serverError, setServerError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [showAllRequests, setShowAllRequests] = useState(false);
-  const [activeTip, setActiveTip] = useState<(typeof PET_CARE_TIPS)[0] | null>(null);
-  const [isAddPetModalOpen, setAddPetModalOpen] = useState(false);
-  const [newPetForm, setNewPetForm] = useState({
-    name: '',
-    species: 'dog' as 'dog' | 'cat' | 'bird' | 'other',
-    breed: '',
-    age: 1,
-    gender: 'male' as 'male' | 'female',
-  });
   const [newMessageText, setNewMessageText] = useState('');
 
-  // Form management
+  // Modals state
+  const [isRequestModalOpen, setRequestModalOpen] = useState(false);
+  const [isAddPetModalOpen, setAddPetModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentSuccessReceipt, setPaymentSuccessReceipt] = useState<PaymentReceiptData | null>(null);
+
+  // New Pet Form
+  const [newPetName, setNewPetName] = useState('');
+  const [newPetSpecies, setNewPetSpecies] = useState<string>('dog');
+  const [newPetBreed, setNewPetBreed] = useState('');
+  const [newPetAge, setNewPetAge] = useState('2');
+  const [newPetHealth, setNewPetHealth] = useState('Healthy');
+
+  // Payment State
+  const [selectedPackageId, setSelectedPackageId] = useState('foster_care_charges_3500');
+  const [customAmount, setCustomAmount] = useState('');
+  const [paymentForRequest, setPaymentForRequest] = useState<any | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Community Feedback
+  const [feedbacks, setFeedbacks] = useState<CommunityFeedbackItem[]>(INITIAL_COMMUNITY_FEEDBACK);
+  const [newFeedbackName, setNewFeedbackName] = useState('');
+  const [newFeedbackRating, setNewFeedbackRating] = useState(5);
+  const [newFeedbackComment, setNewFeedbackComment] = useState('');
+
+  // Persist state
+  useEffect(() => {
+    try {
+      localStorage.setItem('resqpet_foster_requests_v3', JSON.stringify(requests));
+    } catch { /* ignore */ }
+  }, [requests]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('resqpet_owner_pets_v3', JSON.stringify(pets));
+    } catch { /* ignore */ }
+  }, [pets]);
+
+  // Form setup
   const {
     register,
     handleSubmit,
     reset,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<FosterFormValues>({
     defaultValues: {
       petId: INITIAL_MOCK_PETS[0]._id,
-      reason: '',
+      ownerName: currentUser?.name || 'petowner',
+      contactInfo: currentUser?.email || currentUser?.phone || 'petowner@gmail.com',
+      durationDays: 14,
+      offeredCharges: 3500,
+      reason: 'Work travel',
       startDate: '',
       endDate: '',
       additionalNotes: '',
     },
   });
 
+  const watchedCharges = watch('offeredCharges');
   const watchedNotes = watch('additionalNotes') || '';
-  const watchedStartDate = watch('startDate');
-  const watchedEndDate = watch('endDate');
 
-  // Save requests to localStorage whenever they change
+  // Synchronize backend data on mount
   useEffect(() => {
-    try {
-      localStorage.setItem('resqpet_foster_requests', JSON.stringify(requests));
-    } catch { /* ignore */ }
-  }, [requests]);
-
-  // Save pets to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('resqpet_owner_pets', JSON.stringify(pets));
-    } catch { /* ignore */ }
-  }, [pets]);
-
-  // Load from real backend if available
-  const loadFromBackend = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [backendReqs, backendPets] = await Promise.all([
-        fosterApi.list().catch(() => null),
-        petApi.list().catch(() => null),
-      ]);
-
-      if (backendPets && backendPets.length > 0) {
-        setPets(backendPets);
-        setSelectedPetId((prev) => (backendPets.some((p) => p._id === prev) ? prev : backendPets[0]._id));
-      }
-
-      if (backendReqs && backendReqs.length > 0) {
-        setRequests(backendReqs);
-      }
-    } catch {
-      // Backend offline: silently keep resilient mock state
-    } finally {
-      setLoading(false);
-    }
+    let isMounted = true;
+    (async () => {
+      try {
+        const [liveRequests, livePets] = await Promise.allSettled([fosterApi.list(), petApi.list()]);
+        if (isMounted) {
+          if (livePets.status === 'fulfilled' && (livePets.value as any[]).length > 0) {
+            setPets((prev) => {
+              const ids = new Set((livePets.value as any[]).map((p: any) => p._id));
+              const extras = prev.filter((p: any) => !ids.has(p._id));
+              return [...(livePets.value as any[]), ...extras];
+            });
+          }
+          if (liveRequests.status === 'fulfilled' && (liveRequests.value as any[]).length > 0) {
+            setRequests((prev) => {
+              const ids = new Set((liveRequests.value as any[]).map((r: any) => r._id));
+              const extras = prev.filter((r: any) => !ids.has(r._id));
+              return [...(liveRequests.value as any[]), ...extras];
+            });
+          }
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  useEffect(() => {
-    loadFromBackend();
-  }, [loadFromBackend]);
-
-  // Sync petId in form when user clicks a pet card
+  // Sync petId form value when selected pet changes
   useEffect(() => {
     setValue('petId', selectedPetId);
   }, [selectedPetId, setValue]);
 
-  // Calculate duration in days between dates if selected
-  const calculatedDurationDays = (() => {
-    if (!watchedStartDate || !watchedEndDate) return null;
-    const start = new Date(watchedStartDate).getTime();
-    const end = new Date(watchedEndDate).getTime();
-    if (isNaN(start) || isNaN(end) || end <= start) return null;
-    return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-  })();
+  const selectedPet = pets.find((p: any) => p._id === selectedPetId) || pets[0];
 
-  // Current selected pet object
-  const selectedPet = pets.find((p) => p._id === selectedPetId) || pets[0] || null;
+  // Request status counts for Right Sidebar
+  const countPending = requests.filter((r: any) => r.status === 'pending').length;
+  const countApproved = requests.filter((r: any) => r.status === 'accepted' || r.status === 'in_foster' || r.status === 'active').length;
+  const countRejected = requests.filter((r: any) => r.status === 'rejected' || r.status === 'cancelled').length;
 
-  // Handle foster request submission
+  // Filtered requests list
+  const filteredRequests = requests.filter((r: any) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'pending') return r.status === 'pending';
+    if (statusFilter === 'accepted') return r.status === 'accepted' || r.status === 'in_foster' || r.status === 'active';
+    if (statusFilter === 'rejected') return r.status === 'rejected' || r.status === 'cancelled';
+    return true;
+  });
+
+  const displayedRequests = showAllRequests ? filteredRequests : filteredRequests.slice(0, 4);
+
+  // ── Helper to execute foster creation ─────────────────────────────────
+  const executeFosterSubmission = async (
+    values: FosterFormValues,
+    paymentReceipt?: PaymentReceiptData
+  ) => {
+    const targetPet = pets.find((p: any) => p._id === values.petId) || selectedPet;
+
+    const dateStr = values.startDate && values.endDate
+      ? `${new Date(values.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${new Date(values.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+      : 'Dates to be arranged';
+
+    const parts = [
+      values.reason ? `Reason: ${values.reason}` : '',
+      `Duration: ${values.durationDays || '14'} days`,
+      `Dates: ${dateStr}`,
+      values.offeredCharges ? `Offered Budget / Care Charges: ₹${values.offeredCharges}` : '',
+      values.ownerName ? `Owner: ${values.ownerName}` : '',
+      values.contactInfo ? `Contact: ${values.contactInfo}` : '',
+      values.additionalNotes ? `Requirements/Notes: ${values.additionalNotes}` : '',
+      paymentReceipt ? `[Care Escrow Paid: ₹${paymentReceipt.amount} via Razorpay (Txn ID: ${paymentReceipt.txnId})]` : '',
+    ].filter(Boolean);
+
+    let createdReq: any;
+
+    try {
+      const res = await fosterApi.create({
+        petId: values.petId,
+        reason: parts.join('\n'),
+        durationDays: values.durationDays ? Number(values.durationDays) : undefined,
+      });
+      createdReq = {
+        ...res,
+        paidAmount: paymentReceipt?.amount,
+        paymentId: paymentReceipt?.txnId,
+        paymentStatus: paymentReceipt ? 'paid' : (values.offeredCharges ? 'unpaid' : undefined),
+      };
+    } catch {
+      // Local fallback
+      createdReq = {
+        _id: `req-${Date.now()}`,
+        pet: {
+          _id: targetPet._id,
+          name: targetPet.name,
+          species: targetPet.species,
+          images: targetPet.images && targetPet.images.length > 0 ? targetPet.images : [{ url: '/pets/dog_golden.jpg' }],
+        },
+        requestedBy: {
+          _id: currentUser?._id || 'user-owner',
+          name: values.ownerName || currentUser?.name || 'Suraj Kumar',
+          phone: values.contactInfo || currentUser?.phone || '+91 98765 43210',
+        },
+        reason: parts.join('\n'),
+        durationDays: values.durationDays ? Number(values.durationDays) : 14,
+        status: 'pending',
+        paidAmount: paymentReceipt?.amount,
+        paymentId: paymentReceipt?.txnId,
+        paymentStatus: paymentReceipt ? 'paid' : (values.offeredCharges ? 'unpaid' : undefined),
+        locationSharingEnabled: false,
+        ownerReturnNotified: false,
+        readyForReturn: false,
+        ownerConfirmed: false,
+        messages: [
+          {
+            sender: { _id: currentUser?._id || 'user-owner', name: values.ownerName || currentUser?.name || 'Suraj Kumar' },
+            text: `Foster request submitted: ${values.reason}${paymentReceipt ? ` (Care charges of ₹${paymentReceipt.amount} paid upfront via Razorpay: ${paymentReceipt.txnId})` : ''}`,
+            sentAt: new Date().toISOString(),
+          },
+        ],
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    setRequests((prev) => [createdReq, ...prev]);
+    setRequestModalOpen(false);
+
+    if (paymentReceipt) {
+      setSuccessMsg(`Foster care request submitted for ${targetPet.name}! ₹${paymentReceipt.amount} care charges secured via Razorpay (${paymentReceipt.txnId}).`);
+    } else {
+      setSuccessMsg(`Foster care request for ${targetPet.name} submitted successfully! Awaiting foster home response.`);
+    }
+
+    reset({
+      petId: selectedPetId,
+      ownerName: currentUser?.name || 'petowner',
+      contactInfo: currentUser?.email || currentUser?.phone || 'petowner@gmail.com',
+      durationDays: 14,
+      offeredCharges: 3500,
+      reason: 'Work travel',
+      startDate: '',
+      endDate: '',
+      additionalNotes: '',
+    });
+    setTimeout(() => setSuccessMsg(''), 7000);
+  };
+
+  // ── Form Submit: Standard (Pay Later / Cash) ──────────────────────────
   const onSubmit = async (values: FosterFormValues) => {
     setServerError('');
+    await executeFosterSubmission(values);
+  };
+
+  // ── Form Submit: Pay via Razorpay directly ────────────────────────────
+  const handlePayAndSubmit = async (values: FosterFormValues) => {
+    setServerError('');
+    const targetPet = pets.find((p: any) => p._id === values.petId) || selectedPet;
+    const amountVal = Number(values.offeredCharges) || 3500;
+
+    setIsProcessingPayment(true);
     try {
-      const chosenPet = pets.find((p) => p._id === values.petId) || selectedPet;
-      if (!chosenPet) {
-        setServerError('Please select a pet to foster.');
-        return;
-      }
-
-      const formattedStart = values.startDate ? formatDateDisplay(values.startDate) : '';
-      const formattedEnd = values.endDate ? formatDateDisplay(values.endDate) : '';
-
-      const reasonFormatted = [
-        `Reason: ${values.reason}`,
-        values.startDate || values.endDate ? `Dates: ${formattedStart} to ${formattedEnd}` : '',
-        values.additionalNotes ? `Notes: ${values.additionalNotes}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      let createdRequest: FosterRequest;
-
-      // Try calling backend API first
-      try {
-        createdRequest = await fosterApi.create({
-          petId: chosenPet._id,
-          reason: reasonFormatted,
-          durationDays: calculatedDurationDays || undefined,
-        });
-      } catch {
-        // Backend offline: generate local client-side request
-        createdRequest = {
-          _id: `req-${Date.now()}`,
-          pet: {
-            _id: chosenPet._id,
-            name: chosenPet.name,
-            species: chosenPet.species,
-            images: chosenPet.images?.length > 0 ? chosenPet.images : [{ url: '/pet-bruno.jpg' }],
-          },
-          requestedBy: {
-            _id: currentUser?._id || 'user-owner',
-            name: currentUser?.name || 'Suraj Kumar',
-            phone: currentUser?.phone || '+91 98765 43210',
-          },
-          fosterProvider: undefined,
-          reason: reasonFormatted,
-          durationDays: calculatedDurationDays || undefined,
-          status: 'pending',
-          messages: [
-            {
-              sender: { _id: currentUser?._id || 'user-owner', name: currentUser?.name || 'Suraj Kumar' },
-              text: `Foster care requested for ${chosenPet.name} (${values.reason}).`,
-              sentAt: new Date().toISOString(),
-            },
-          ],
-          createdAt: new Date().toISOString(),
-        };
-      }
-
-      // Prepend to requests list
-      setRequests((prev) => [createdRequest, ...prev]);
-
-      // Show success feedback
-      setSuccessMsg('Foster care request submitted successfully! Foster homes have been notified.');
-      reset({
-        petId: selectedPetId,
-        reason: '',
-        startDate: '',
-        endDate: '',
-        additionalNotes: '',
+      const response = await openRazorpayCheckout({
+        amount: amountVal,
+        currency: 'INR',
+        name: 'ResQPet Foster Care',
+        description: `Foster Care Escrow for ${targetPet.name} (${values.durationDays || '14'} days)`,
+        image: '/logo.png',
+        prefill: {
+          name: values.ownerName || currentUser?.name || 'Suraj Kumar',
+          email: currentUser?.email || 'owner@resqpet.app',
+          contact: values.contactInfo || currentUser?.phone || '+91 98765 43210',
+        },
+        notes: {
+          petName: targetPet.name,
+          purpose: 'foster_care_request',
+          charges: String(amountVal),
+          durationDays: String(values.durationDays || '14'),
+        },
+        theme: {
+          color: '#16a34a',
+        },
       });
 
-      // Auto dismiss success notification after 6s
-      setTimeout(() => setSuccessMsg(''), 6000);
+      const receipt: PaymentReceiptData = {
+        id: `rcpt-${Date.now()}`,
+        txnId: `RZP-${response.razorpay_payment_id}`,
+        petName: targetPet.name,
+        amount: amountVal,
+        serviceType: 'Foster Care Caregiver Charges',
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        method: 'Razorpay Secure Gateway (Live)',
+      };
+
+      setPaymentSuccessReceipt(receipt);
+      setPaymentModalOpen(true);
+
+      // Best effort backend sync
+      try {
+        await (donationApi as any).createRazorpayOrder?.({
+          amount: amountVal,
+          purpose: 'foster_care',
+        });
+      } catch { /* offline safe */ }
+
+      // Execute request creation with payment details attached
+      await executeFosterSubmission(values, receipt);
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Could not submit foster request. Please try again.';
-      setServerError(msg);
+      const msg = (err as Error)?.message || 'Payment cancelled or could not be processed.';
+      if (!msg.toLowerCase().includes('cancelled')) {
+        setServerError(msg);
+      }
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
-  // Open detail modal with full data
-  const handleOpenDetail = async (req: FosterRequest) => {
+  // ── Open View Details Modal ───────────────────────────────────────────
+  const handleOpenDetail = async (req: any) => {
     try {
       const full = await fosterApi.getById(req._id);
       setActiveDetail(full);
@@ -507,147 +667,145 @@ const OwnerFoster = () => {
     }
   };
 
-  // Accept / Approve foster request (Full feature fulfillment!)
+  // ── Accept / Approve Foster Request Feature ───────────────────────────
   const handleAcceptRequest = async (requestId: string) => {
     try {
       try {
         await fosterApi.accept(requestId);
-      } catch {
-        // Continue with local update if backend offline
-      }
+      } catch { /* offline fallback */ }
 
-      const assignedFoster = {
+      const assignedProvider = {
         _id: 'foster-sarah-jenkins',
         name: 'Sarah Jenkins (Green Meadows Sanctuary)',
       };
 
-      const updateItem = (r: FosterRequest): FosterRequest => {
+      const updater = (r: any) => {
         if (r._id !== requestId) return r;
         return {
           ...r,
           status: 'accepted',
-          fosterProvider: assignedFoster,
+          fosterProvider: assignedProvider,
           messages: [
             ...(r.messages || []),
             {
-              sender: assignedFoster,
-              text: 'Foster home assigned! Sarah Jenkins has accepted your foster request.',
+              sender: assignedProvider,
+              text: 'Foster home assigned! Sarah Jenkins has approved and accepted your pet.',
               sentAt: new Date().toISOString(),
             },
           ],
         };
       };
 
-      setRequests((prev) => prev.map(updateItem));
-      setActiveDetail((prev) => (prev && prev._id === requestId ? updateItem(prev) : prev));
-      setSuccessMsg('Foster request accepted and approved successfully!');
+      setRequests((prev) => prev.map(updater));
+      setActiveDetail((prev: any) => (prev && prev._id === requestId ? updater(prev) : prev));
+      setSuccessMsg('Foster request accepted! Status updated to Approved.');
       setTimeout(() => setSuccessMsg(''), 5000);
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Mark foster request as completed
-  const handleCompleteRequest = async (requestId: string) => {
+  // ── Reject Foster Request Feature ─────────────────────────────────────
+  const handleRejectRequest = async (requestId: string) => {
     try {
       try {
-        await fosterApi.complete(requestId);
-      } catch {
-        // Continue with local update
-      }
+        await fosterApi.reject(requestId);
+      } catch { /* offline fallback */ }
 
-      const updateItem = (r: FosterRequest): FosterRequest => {
+      const updater = (r: any) => {
         if (r._id !== requestId) return r;
         return {
           ...r,
-          status: 'completed',
-          messages: [
-            ...(r.messages || []),
-            {
-              sender: { _id: 'system', name: 'ResQPet System' },
-              text: 'Foster placement completed. Pet safely returned to owner.',
-              sentAt: new Date().toISOString(),
-            },
-          ],
+          status: 'rejected',
         };
       };
 
-      setRequests((prev) => prev.map(updateItem));
-      setActiveDetail((prev) => (prev && prev._id === requestId ? updateItem(prev) : prev));
-      setSuccessMsg('Foster arrangement marked as completed! Pet returned safely.');
-      setTimeout(() => setSuccessMsg(''), 5000);
+      setRequests((prev) => prev.map(updater));
+      setActiveDetail((prev: any) => (prev && prev._id === requestId ? updater(prev) : prev));
+      setSuccessMsg('Foster request marked as rejected.');
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Cancel foster request
-  const handleCancelRequest = (requestId: string) => {
-    const updateItem = (r: FosterRequest): FosterRequest => {
-      if (r._id !== requestId) return r;
-      return { ...r, status: 'cancelled' };
-    };
-    setRequests((prev) => prev.map(updateItem));
-    setActiveDetail((prev) => (prev && prev._id === requestId ? updateItem(prev) : prev));
-    setSuccessMsg('Foster request has been cancelled.');
-    setTimeout(() => setSuccessMsg(''), 5000);
-  };
+  // ── Send In-App Message ───────────────────────────────────────────────
+  const handleSendMessage = async (requestId: string) => {
+    if (!newMessageText.trim()) return;
 
-  // Send a message inside the active detail modal
-  const handleSendMessage = async () => {
-    if (!activeDetail || !newMessageText.trim()) return;
-    const text = newMessageText.trim();
-    setNewMessageText('');
+    const newMsg = {
+      sender: {
+        _id: currentUser?._id || 'user-owner',
+        name: currentUser?.name || 'Suraj Kumar',
+      },
+      text: newMessageText.trim(),
+      sentAt: new Date().toISOString(),
+    };
 
     try {
-      try {
-        await fosterApi.sendMessage(activeDetail._id, text);
-      } catch {
-        // Continue with local update
-      }
+      await fosterApi.sendMessage(requestId, newMessageText.trim());
+    } catch { /* offline safe */ }
 
-      const newMsg = {
-        sender: {
-          _id: currentUser?._id || 'user-owner',
-          name: currentUser?.name || 'Suraj Kumar',
-        },
-        text,
-        sentAt: new Date().toISOString(),
+    const updater = (r: any) => {
+      if (r._id !== requestId) return r;
+      return {
+        ...r,
+        messages: [...(r.messages || []), newMsg],
       };
+    };
 
-      const updateItem = (r: FosterRequest): FosterRequest => {
-        if (r._id !== activeDetail._id) return r;
-        return {
-          ...r,
-          messages: [...(r.messages || []), newMsg],
-        };
-      };
-
-      setRequests((prev) => prev.map(updateItem));
-      setActiveDetail((prev) => (prev ? updateItem(prev) : null));
-    } catch (e) {
-      console.error(e);
-    }
+    setRequests((prev) => prev.map(updater));
+    setActiveDetail((prev: any) => (prev && prev._id === requestId ? updater(prev) : prev));
+    setNewMessageText('');
   };
 
-  // Add new pet handler
-  const handleCreateNewPet = (e: React.FormEvent) => {
+  // ── Add Community Feedback ───────────────────────────────────────────
+  const handleAddFeedback = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPetForm.name.trim()) return;
+    if (!newFeedbackName.trim() || !newFeedbackComment.trim()) return;
 
-    const newPet: Pet = {
-      _id: `pet-custom-${Date.now()}`,
-      petId: `PET-${Date.now().toString().slice(-4)}`,
+    const newItem: CommunityFeedbackItem = {
+      id: `fb-${Date.now()}`,
+      name: newFeedbackName.trim(),
+      rating: newFeedbackRating,
+      timeAgo: 'Just now',
+      comment: newFeedbackComment.trim(),
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      verified: true,
+    };
+
+    setFeedbacks([newItem, ...feedbacks]);
+    setNewFeedbackName('');
+    setNewFeedbackComment('');
+    setNewFeedbackRating(5);
+    setFeedbackModalOpen(false);
+    setSuccessMsg('Thank you for sharing your foster care story!');
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  // ── Add New Pet Modal Submit ──────────────────────────────────────────
+  const handleAddNewPet = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPetName.trim()) return;
+
+    const newPet: any = {
+      _id: `mock-pet-${Date.now()}`,
+      petId: `PET-${newPetName.toUpperCase()}-${Math.floor(10 + Math.random() * 90)}`,
       owner: currentUser?._id || 'user-owner',
-      name: newPetForm.name.trim(),
-      species: newPetForm.species,
-      breed: newPetForm.breed || 'Companion',
-      age: Number(newPetForm.age) || 1,
-      gender: newPetForm.gender,
+      name: newPetName.trim(),
+      species: newPetSpecies,
+      breed: newPetBreed.trim() || 'Mixed Breed',
+      age: parseInt(newPetAge) || 2,
+      gender: 'male',
       images: [
         {
-          url: newPetForm.species === 'cat' ? '/pet-milo.jpg' : '/pet-bruno.jpg',
-          publicId: `img-${Date.now()}`,
+          url:
+            newPetSpecies === 'dog'
+              ? '/pets/dog_golden.jpg'
+              : newPetSpecies === 'cat'
+              ? '/pets/cat_tabby.jpg'
+              : '/pets/dog_beagle.jpg',
+          publicId: `pet-${Date.now()}`,
         },
       ],
       vaccinations: [],
@@ -655,199 +813,221 @@ const OwnerFoster = () => {
       collar: { isActive: false },
       safeZone: { enabled: false, radiusMeters: 200 },
       status: 'safe',
+      healthStatus: newPetHealth,
       createdAt: new Date().toISOString(),
     };
 
-    setPets((prev) => [newPet, ...prev]);
+    setPets((prev) => [...prev, newPet]);
     setSelectedPetId(newPet._id);
     setValue('petId', newPet._id);
     setAddPetModalOpen(false);
-    setNewPetForm({ name: '', species: 'dog', breed: '', age: 1, gender: 'male' });
-    setSuccessMsg(`Pet "${newPet.name}" added successfully and selected!`);
+    setNewPetName('');
+    setNewPetBreed('');
+    setSuccessMsg(`"${newPet.name}" added and selected!`);
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
-  // Requests to display (first 2 or all)
-  const displayedRequests = showAllRequests ? requests : requests.slice(0, 2);
+  // ── Payment Gateway Trigger ───────────────────────────────────────────
+  const handleOpenPayment = (req?: any) => {
+    setPaymentForRequest(req || null);
+    setSelectedPackageId('foster_care_charges_3500');
+    setCustomAmount(req?.paidAmount ? String(req.paidAmount) : '');
+    setPaymentSuccessReceipt(null);
+    setPaymentModalOpen(true);
+  };
+
+  const handleExecuteRazorpay = async () => {
+    setIsProcessingPayment(true);
+    setServerError('');
+
+    const pkg = FOSTER_PAYMENT_PACKAGES.find((p) => p.id === selectedPackageId);
+    const amountVal = customAmount ? parseFloat(customAmount) : (pkg ? pkg.amount : 3500);
+    const serviceLabel = pkg ? pkg.label : 'Foster Care Escrow Deposit';
+    const petName = paymentForRequest ? paymentForRequest.pet.name : selectedPet.name;
+
+    try {
+      const response = await openRazorpayCheckout({
+        amount: amountVal,
+        currency: 'INR',
+        name: 'ResQPet Foundation',
+        description: `Foster Care Escrow: ${serviceLabel} for ${petName}`,
+        image: '/logo.png',
+        prefill: {
+          name: currentUser?.name || 'Suraj Kumar',
+          email: currentUser?.email || 'owner@resqpet.app',
+          contact: currentUser?.phone || '+91 98765 43210',
+        },
+        notes: {
+          petName,
+          service: serviceLabel,
+          requestId: paymentForRequest?._id || '',
+        },
+        theme: {
+          color: '#16a34a',
+        },
+      });
+
+      const receipt: PaymentReceiptData = {
+        id: `rcpt-${Date.now()}`,
+        txnId: `RZP-${response.razorpay_payment_id}`,
+        petName,
+        amount: amountVal,
+        serviceType: serviceLabel,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        method: 'Razorpay Secure Gateway (Live)',
+      };
+
+      setPaymentSuccessReceipt(receipt);
+
+      // Best effort backend sync
+      try {
+        await (donationApi as any).createRazorpayOrder?.({
+          amount: amountVal,
+          purpose: 'foster_care',
+        });
+      } catch { /* offline safe */ }
+
+      // Update request reason if applicable
+      if (paymentForRequest) {
+        setRequests((prev) =>
+          prev.map((r: any) =>
+            r._id === paymentForRequest._id
+              ? {
+                  ...r,
+                  paidAmount: amountVal,
+                  paymentId: `RZP-${response.razorpay_payment_id}`,
+                  paymentStatus: 'paid',
+                  reason: `${r.reason}\n[Care Escrow Paid: ₹${amountVal} via Razorpay ID: ${response.razorpay_payment_id}]`,
+                }
+              : r
+          )
+        );
+      }
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || 'Payment failed or cancelled.';
+      if (!msg.toLowerCase().includes('cancelled')) {
+        setServerError(msg);
+      }
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
 
   return (
     <div className="space-y-6 pb-12 font-sans animate-fade-in text-slate-800 dark:text-bone">
 
-      {/* ═══════════════════════════════════════════════════════
-          1. HERO BANNER (Matches screenshot layout & aesthetics)
-      ═══════════════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#eef8f3] via-[#e5f5ec] to-[#d8efe2] dark:from-emerald-950/40 dark:via-emerald-900/20 dark:to-teal-950/30 border border-[#bfe7d1]/80 dark:border-emerald-800/40 p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 z-10 max-w-xl">
-            {/* Green rounded icon with house and heart */}
-            <div className="w-14 h-14 rounded-2xl bg-[#15803d] dark:bg-emerald-600 flex items-center justify-center shadow-md shadow-emerald-700/20 shrink-0">
-              <div className="relative">
-                <Home className="h-7 w-7 text-white stroke-[2.2]" />
-                <Heart className="h-3 w-3 text-[#15803d] fill-white absolute top-2.5 left-2" />
-              </div>
-            </div>
-            <div>
-              <h1 className="font-display text-2xl md:text-3xl font-bold text-[#14532d] dark:text-emerald-300 tracking-tight">
+      {/* ═════════════════════════════════════════════════════════════
+          1. HERO BANNER
+      ═════════════════════════════════════════════════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#e8f6ed] via-[#edf7f1] to-[#e4f5ec] dark:from-emerald-950/40 dark:via-emerald-900/20 dark:to-teal-950/30 border border-[#bfe7d1]/80 dark:border-emerald-800/40 p-6 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-3 z-10 max-w-xl">
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#164e33] dark:text-emerald-300 tracking-tight">
                 Foster Care
               </h1>
-              <p className="text-xs md:text-sm text-emerald-900/80 dark:text-emerald-200/80 mt-1 leading-relaxed">
-                Give your pet a safe, temporary home when you can't care for them, and help them find a better tomorrow.
-              </p>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 text-[11px] font-bold">
+                <Lock className="h-3 w-3" /> Razorpay Live Active
+              </span>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-bone/80 leading-relaxed">
+              Give your pet a safe, temporary home when you can't care for them, and give money directly to loving caregivers with Razorpay escrow protection.
+            </p>
+
+            {/* Three Feature Pills + Prominent Request Foster Care Button */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                id="hero-request-foster-care-btn"
+                onClick={() => setRequestModalOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              >
+                <PawPrint className="h-4 w-4" />
+                <span>Request Foster Care (Modal)</span>
+              </button>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 shadow-xs border border-emerald-100 dark:border-emerald-900/60 text-xs font-semibold text-slate-800 dark:text-bone">
+                <ShieldCheck className="h-4 w-4 text-[#16a34a] dark:text-emerald-400" />
+                <span>Verified Foster Homes</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 shadow-xs border border-emerald-100 dark:border-emerald-900/60 text-xs font-semibold text-slate-800 dark:text-bone">
+                <IndianRupee className="h-4 w-4 text-emerald-600" />
+                <span>Advance Care Escrow</span>
+              </div>
             </div>
           </div>
 
-          {/* Right side pet banner photograph */}
-          <div className="relative hidden sm:block md:w-80 h-24 md:h-28 shrink-0 overflow-hidden rounded-xl">
-            <img
-              src="/foster-hero-banner.jpg"
-              alt="Golden retriever dog and tabby cat"
-              className="w-full h-full object-cover object-top filter brightness-105"
-            />
-            {/* Subtle soft gradient fade into banner background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#eef8f3] via-transparent to-transparent md:w-24 pointer-events-none" />
+          {/* Right side: Real Pets Photo + Cursive text badge */}
+          <div className="relative shrink-0 flex items-center justify-center lg:justify-end">
+            <div className="w-64 sm:w-80 h-32 sm:h-36 overflow-hidden rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm">
+              <img
+                src="/pets/dog_golden.jpg"
+                alt="Golden retriever and companion pet"
+                className="w-full h-full object-cover object-top"
+              />
+            </div>
+            <div className="hidden sm:block absolute -top-1 right-2 text-right pointer-events-none select-none">
+              <div className="font-serif italic text-xs font-semibold text-[#15803d] dark:text-emerald-400 drop-shadow-xs rotate-[-6deg] bg-white/80 dark:bg-slate-900/80 px-2.5 py-1 rounded-xl backdrop-blur-xs border border-emerald-200/60">
+                Safe foster homes & secure care charges ✨
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Delicate floating background hearts */}
-        <div className="absolute top-2 right-40 text-emerald-400/20 text-3xl select-none pointer-events-none">♡</div>
-        <div className="absolute bottom-2 right-64 text-emerald-400/20 text-2xl select-none pointer-events-none">♡</div>
-        <div className="absolute top-4 right-16 text-emerald-400/20 text-xl select-none pointer-events-none">♡</div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
+      {/* Success Notification Alert */}
+      {successMsg && (
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 p-4 text-sm text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-3 animate-fade-in shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-semibold">{successMsg}</span>
+          </div>
+          <button
+            onClick={() => setSuccessMsg('')}
+            className="text-emerald-600 hover:text-emerald-800 text-xs font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════
           MAIN GRID: Left Column (Content) + Right Column (Widgets)
-      ═══════════════════════════════════════════════════════ */}
+      ═════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_310px] gap-6">
 
         {/* ── LEFT COLUMN ───────────────────────────────────── */}
         <div className="space-y-6">
 
-          {/* 2. Notice / Alert Bar (Mint green with info badge) */}
-          <div className="flex items-center gap-3 rounded-xl bg-[#eaf7f0] dark:bg-emerald-950/40 border border-[#bbf0d6] dark:border-emerald-800/60 px-4 py-3 shadow-xs">
-            <div className="w-5 h-5 rounded-full bg-[#16a34a] flex items-center justify-center text-white shrink-0 text-xs font-bold shadow-xs">
-              <Info className="h-3.5 w-3.5 stroke-[2.5]" />
-            </div>
-            <div className="text-xs text-[#166534] dark:text-emerald-300 leading-snug">
-              <span className="font-semibold">Only Pet Owners can send foster care requests.</span>
-              <span className="ml-1 text-[#15803d] dark:text-emerald-400">
-                Foster Homes can view, accept or reject the requests.
-              </span>
-            </div>
-          </div>
-
-          {/* Success Notification Alert */}
-          {successMsg && (
-            <div className="rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 p-4 text-sm text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-3 animate-fade-in shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span className="font-medium">{successMsg}</span>
-              </div>
-              <button
-                onClick={() => setSuccessMsg('')}
-                className="text-emerald-600 hover:text-emerald-800 text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════
-              3. MY PETS SECTION (Cards with Bruno, Milo, Luna, Mia)
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═════════════════════════════════════════════════════
+          3. SEND FOSTER CARE REQUEST FORM (Matching Screenshot)
+          ═════════════════════════════════════════════════════ */}
           <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
-                  My Pets
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-bone/60">
-                  Select a pet from your list to send a foster care request.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#eaf7f0] dark:bg-emerald-950/50 flex items-center justify-center shrink-0 text-[#16a34a] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
+                    Send Foster Care Request & Pay Caregiver
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-bone/60">
+                    Fill in foster requirements and pay care charges directly with Razorpay escrow.
+                  </p>
+                </div>
               </div>
+
               <button
-                id="add-new-pet-btn"
                 type="button"
-                onClick={() => setAddPetModalOpen(true)}
-                className="text-xs font-bold text-[#16a34a] hover:text-[#15803d] dark:text-emerald-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => setRequestModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
               >
-                <PlusCircle className="h-4 w-4" /> Add New Pet
+                <PawPrint className="h-3.5 w-3.5" />
+                <span>Open in Modal</span>
               </button>
-            </div>
-
-            {/* Horizontal Pet Cards Carousel */}
-            <div className="flex gap-3.5 mt-3 overflow-x-auto pb-2 pt-1 scrollbar-thin">
-              {pets.map((pet) => {
-                const isSelected = pet._id === selectedPetId;
-                const petImage =
-                  pet.images?.[0]?.url ||
-                  (pet.species === 'cat' ? '/pet-milo.jpg' : '/pet-bruno.jpg');
-
-                return (
-                  <button
-                    key={pet._id}
-                    id={`pet-card-${pet._id}`}
-                    type="button"
-                    onClick={() => {
-                      setSelectedPetId(pet._id);
-                      setValue('petId', pet._id);
-                    }}
-                    className={`group relative flex-shrink-0 w-36 rounded-xl border text-left transition-all duration-200 cursor-pointer overflow-hidden bg-white dark:bg-ink-soft ${
-                      isSelected
-                        ? 'border-2 border-[#16a34a] shadow-md shadow-emerald-500/10 dark:border-emerald-500'
-                        : 'border-slate-200 dark:border-mist-700 hover:border-emerald-300 dark:hover:border-emerald-700/60 shadow-xs'
-                    }`}
-                  >
-                    {/* Pet Image */}
-                    <div className="w-full h-24 bg-slate-100 dark:bg-mist-800 overflow-hidden relative">
-                      <img
-                        src={petImage}
-                        alt={pet.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-
-                    {/* Pet Information */}
-                    <div className="p-2.5">
-                      <p className="font-bold text-xs text-slate-900 dark:text-bone truncate">
-                        {pet.name}
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-bone/60 capitalize mt-0.5">
-                        {pet.species} • {pet.age ? `${pet.age} Years` : 'Pet'}
-                      </p>
-
-                      {/* Bottom-left radio selection circle matching screenshot! */}
-                      <div className="mt-2.5 flex items-center">
-                        {isSelected ? (
-                          <div className="w-4 h-4 rounded-full bg-[#16a34a] flex items-center justify-center shadow-xs">
-                            <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />
-                          </div>
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-mist-600 group-hover:border-emerald-400 transition-colors" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ═══════════════════════════════════════════════════════
-              4. SEND FOSTER CARE REQUEST FORM
-          ═══════════════════════════════════════════════════════ */}
-          <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-[#eaf7f0] dark:bg-emerald-950/50 flex items-center justify-center shrink-0 text-[#16a34a] dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
-                  Send Foster Care Request
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-bone/60">
-                  Fill in the details below to request foster care for your selected pet.
-                </p>
-              </div>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -860,18 +1040,52 @@ const OwnerFoster = () => {
                 </div>
               )}
 
-              {/* Form Row: Reason + Preferred Dates */}
+              {/* Row 1: Select Your Pet + Reason for Foster Care */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Select Your Pet Dropdown */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="pet-select" className="block text-xs font-semibold text-slate-700 dark:text-bone/90">
+                      Select Your Pet <span className="text-rose-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      id="add-new-pet-btn"
+                      onClick={() => setAddPetModalOpen(true)}
+                      className="text-[11px] text-[#16a34a] hover:text-emerald-700 dark:text-emerald-400 font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Plus className="h-3 w-3" /> Add Pet
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <select
+                      id="pet-select"
+                      value={selectedPetId}
+                      onChange={(e) => {
+                        setSelectedPetId(e.target.value);
+                        setValue('petId', e.target.value);
+                      }}
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-3 pr-8 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer font-medium"
+                    >
+                      {pets.map((p: any) => (
+                        <option key={p._id} value={p._id}>
+                          {p.name} ({p.species} • {p.breed || 'Unknown'})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronRight className="absolute right-3 top-3 h-3.5 w-3.5 text-slate-400 rotate-90 pointer-events-none" />
+                  </div>
+                </div>
 
-                {/* Reason for Foster Request */}
+                {/* Reason for Foster Care Dropdown */}
                 <div>
                   <label htmlFor="reason-select" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
-                    Reason for Foster Request <span className="text-rose-500">*</span>
+                    Reason for Foster Care <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <select
                       id="reason-select"
-                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-3 pr-8 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer transition-all"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-3 pr-8 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer font-medium"
                       {...register('reason', { required: 'Please select a reason' })}
                     >
                       <option value="">Select reason</option>
@@ -883,328 +1097,815 @@ const OwnerFoster = () => {
                     </select>
                     <ChevronRight className="absolute right-3 top-3 h-3.5 w-3.5 text-slate-400 rotate-90 pointer-events-none" />
                   </div>
-                  {errors.reason && (
-                    <p className="mt-1 text-[11px] text-rose-500">{errors.reason.message}</p>
-                  )}
-                </div>
-
-                {/* Preferred Foster Period */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-bone/90">
-                      Preferred Foster Period <span className="text-rose-500">*</span>
-                    </label>
-                    {calculatedDurationDays && (
-                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                        ~{calculatedDurationDays} days
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        id="startDate"
-                        aria-label="Start Date"
-                        className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2 pl-8 pr-2 text-slate-700 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
-                        {...register('startDate', { required: 'Start date is required' })}
-                      />
-                    </div>
-                    <div className="relative">
-                      <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                      <input
-                        type="date"
-                        id="endDate"
-                        aria-label="End Date"
-                        className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2 pl-8 pr-2 text-slate-700 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
-                        {...register('endDate', { required: 'End date is required' })}
-                      />
-                    </div>
-                  </div>
-                  {(errors.startDate || errors.endDate) && (
-                    <p className="mt-1 text-[11px] text-rose-500">Both start and end dates are required</p>
-                  )}
                 </div>
               </div>
 
-              {/* Additional Notes / Instructions */}
+              {/* Row 2: Owner Name + Contact Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="ownerName" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
+                    Owner Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      id="ownerName"
+                      placeholder="petowner"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-9 pr-3 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                      {...register('ownerName')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="contactInfo" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
+                    Contact Phone / Email
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      id="contactInfo"
+                      placeholder="petowner@gmail.com"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-9 pr-3 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                      {...register('contactInfo')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: Number of Days Required + Offered Budget / Care Charges */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="durationDays" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
+                    Number of Days Required
+                  </label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="number"
+                      min={1}
+                      id="durationDays"
+                      placeholder="e.g. 14"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-9 pr-3 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium"
+                      {...register('durationDays')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="offeredCharges" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5 flex items-center justify-between">
+                    <span>Offered Budget / Care Charges (₹)</span>
+                    <span className="text-[11px] text-emerald-600 font-bold">Razorpay Live</span>
+                  </label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="number"
+                      min={100}
+                      step={50}
+                      id="offeredCharges"
+                      placeholder="₹ e.g. 3500 (optional)"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-9 pr-3 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-emerald-700 dark:text-emerald-400"
+                      {...register('offeredCharges')}
+                    />
+                  </div>
+                  {/* Quick Chips */}
+                  <div className="flex gap-1.5 mt-1.5">
+                    {[500, 1500, 3500, 5000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setValue('offeredCharges', amt)}
+                        className="px-2 py-0.5 rounded-lg text-[10px] bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 transition-colors font-medium cursor-pointer"
+                      >
+                        ₹{amt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 4: Preferred Start Date + Preferred End Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="startDate" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
+                    Preferred Start Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="date"
+                      id="startDate"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-9 pr-3 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                      {...register('startDate')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="endDate" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
+                    Preferred End Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="date"
+                      id="endDate"
+                      className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink py-2.5 pl-9 pr-3 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                      {...register('endDate')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 5: Additional Information */}
               <div>
                 <label htmlFor="additionalNotes" className="block text-xs font-semibold text-slate-700 dark:text-bone/90 mb-1.5">
-                  Additional Notes / Instructions <span className="text-slate-400 font-normal">(Optional)</span>
+                  Additional Requirements / Special Notes
                 </label>
                 <textarea
                   id="additionalNotes"
-                  rows={3}
+                  rows={2}
                   maxLength={500}
                   className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-3 text-slate-800 dark:text-bone placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none transition-all"
-                  placeholder="Tell the foster home about your pet's needs, behavior, special care instructions, etc."
+                  placeholder="e.g. Diet routine, medications, hypoallergenic, doesn't like loud sounds..."
                   {...register('additionalNotes')}
                 />
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-[11px] text-slate-400">Provide feeding schedules or medications if any</span>
-                  <span className="text-xs text-slate-400 font-mono">{watchedNotes.length}/500</span>
+                <div className="flex justify-end mt-0.5">
+                  <span className="text-[10px] text-slate-400 font-mono">{watchedNotes.length}/500</span>
                 </div>
               </div>
 
-              {/* Selected Pet Confirmation Preview */}
-              {selectedPet && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f0fdf4] dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40">
-                  <img
-                    src={selectedPet.images?.[0]?.url || '/pet-bruno.jpg'}
-                    alt={selectedPet.name}
-                    className="w-10 h-10 rounded-lg object-cover border border-emerald-200/80 shadow-xs"
-                  />
-                  <div className="text-xs flex-1">
-                    <p className="font-bold text-slate-900 dark:text-bone">
-                      Selected Pet: {selectedPet.name}
-                    </p>
-                    <p className="text-slate-500 dark:text-bone/60 capitalize text-[11px]">
-                      {selectedPet.species} • {selectedPet.breed || 'Companion'} • {selectedPet.age || 1} yr old
+              {/* Form Bottom Row: Escrow Info Box + Action Buttons */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-mist-800">
+                <div className="flex items-start gap-2.5 rounded-xl bg-[#eaf7f0] dark:bg-emerald-950/30 border border-[#bbf0d6] dark:border-emerald-800/60 p-2.5 max-w-md">
+                  <ShieldCheck className="h-4 w-4 text-[#16a34a] shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-[#166534] dark:text-emerald-300 leading-tight">
+                    <p className="font-semibold">Razorpay Escrow Protection (Key: {RAZORPAY_KEY_ID.slice(0, 10)}...)</p>
+                    <p className="text-[10px] text-[#15803d] dark:text-emerald-400 mt-0.5">
+                      Caregiver receives payment once foster placement begins. 100% money-back guarantee.
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-[#16a34a] flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4" /> Ready
-                  </span>
                 </div>
-              )}
 
-              {/* Submit Button */}
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  type="submit"
-                  id="send-foster-request-btn"
-                  disabled={isSubmitting}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#16a34a] hover:bg-[#15803d] text-white px-6 py-2.5 text-xs font-bold shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-                >
-                  <Send className="h-3.5 w-3.5 stroke-[2.5]" />
-                  {isSubmitting ? 'Sending Request…' : 'Send Request'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || isProcessingPayment}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-mist-700 text-slate-700 dark:text-bone hover:bg-slate-50 text-xs font-semibold cursor-pointer"
+                  >
+                    Submit (Pay Later)
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSubmitting || isProcessingPayment}
+                    onClick={handleSubmit(handlePayAndSubmit)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#16a34a] hover:bg-[#15803d] text-white px-5 py-2.5 text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    <CreditCard className="h-4 w-4 stroke-[2.5]" />
+                    <span>{isProcessingPayment ? 'Opening Razorpay…' : `Pay ₹${watchedCharges || 3500} & Send Request`}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
 
-          {/* ═══════════════════════════════════════════════════════
-              5. MY FOSTER REQUESTS TABLE
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═════════════════════════════════════════════════════
+              4. MY FOSTER REQUESTS TABLE
+          ═════════════════════════════════════════════════════ */}
           <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
-                  My Foster Requests
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-bone/60">
-                  Track the status of your submitted foster care requests.
-                </p>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-[#16a34a] dark:text-emerald-400">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
+                    My Foster Requests & Escrow Payments
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-bone/60">
+                    Track caregiver approval and live escrow payment receipts.
+                  </p>
+                </div>
               </div>
-              {requests.length > 2 && (
+
+              {requests.length > 4 && (
                 <button
                   id="view-all-requests-btn"
                   type="button"
                   onClick={() => setShowAllRequests((prev) => !prev)}
                   className="text-xs font-bold text-[#16a34a] hover:text-[#15803d] dark:text-emerald-400 flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  {showAllRequests ? 'Show Less ←' : 'View All Requests →'}
+                  {showAllRequests ? 'Show Less ↑' : 'View All Requests ↓'}
                 </button>
               )}
             </div>
 
-            {loading ? (
-              <div className="space-y-3 py-4">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-12 rounded-xl bg-slate-100 dark:bg-mist-800 animate-pulse" />
-                ))}
-              </div>
-            ) : requests.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 mx-auto mb-3">
-                  <Home className="h-6 w-6" />
-                </div>
-                <p className="font-bold text-slate-800 dark:text-bone text-sm">No Foster Requests Yet</p>
-                <p className="text-xs text-slate-500 dark:text-bone/60 mt-1 max-w-xs mx-auto">
-                  Select a pet above and submit your first temporary foster care request.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs min-w-[560px]">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-mist-800/80 text-slate-400 dark:text-bone/50 font-semibold">
-                      <th className="pb-3 pl-1 font-semibold">Pet</th>
-                      <th className="pb-3 font-semibold">Reason</th>
-                      <th className="pb-3 font-semibold">Requested Date</th>
-                      <th className="pb-3 font-semibold">Status</th>
-                      <th className="pb-3 font-semibold text-right pr-2">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100/80 dark:divide-mist-800/50">
-                    {displayedRequests.map((req) => (
+            {/* Table */}
+            <div className="overflow-x-auto mt-2">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-mist-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    <th className="py-2.5 px-3">Pet</th>
+                    <th className="py-2.5 px-3">Reason & Duration</th>
+                    <th className="py-2.5 px-3">Care Charges (₹)</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-mist-800">
+                  {displayedRequests.map((req: any) => {
+                    const isPaid = req.paymentStatus === 'paid' || req.paidAmount || req.reason?.includes('Care Escrow Paid');
+                    return (
                       <tr
                         key={req._id}
-                        className="hover:bg-slate-50/80 dark:hover:bg-mist-800/30 transition-colors"
+                        className="hover:bg-slate-50/60 dark:hover:bg-mist-800/30 transition-colors"
                       >
                         {/* Pet Column */}
-                        <td className="py-3 pl-1">
+                        <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
                             <img
-                              src={req.pet.images?.[0]?.url || '/pet-bruno.jpg'}
+                              src={req.pet.images?.[0]?.url || '/pets/dog_golden.jpg'}
                               alt={req.pet.name}
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-mist-700 shadow-xs"
+                              className="w-9 h-9 rounded-xl object-cover border border-slate-200 dark:border-mist-700"
                             />
-                            <span className="font-bold text-slate-900 dark:text-bone">
-                              {req.pet.name}
-                            </span>
+                            <div>
+                              <p className="font-bold text-slate-800 dark:text-bone">
+                                {req.pet.name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 capitalize">
+                                {req.pet.species}
+                              </p>
+                            </div>
                           </div>
                         </td>
 
-                        {/* Reason Column */}
-                        <td className="py-3 text-slate-600 dark:text-bone/80 font-medium">
-                          {extractShortReason(req.reason)}
+                        {/* Reason & Duration */}
+                        <td className="py-3 px-3">
+                          <p className="text-slate-700 dark:text-bone font-medium truncate max-w-[200px]">
+                            {req.reason?.split('\n')[0]?.replace('Reason: ', '') || 'Temporary care'}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            ~{req.durationDays || 14} days
+                          </p>
                         </td>
 
-                        {/* Requested Date */}
-                        <td className="py-3 text-slate-500 dark:text-bone/60 font-mono text-[11px]">
-                          {formatDateDisplay(req.createdAt)}
+                        {/* Care Charges & Razorpay Badge */}
+                        <td className="py-3 px-3">
+                          {isPaid ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-[11px]">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>₹{req.paidAmount || 3500} Paid</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-slate-500">₹3,500</span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPayment(req)}
+                                className="px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] cursor-pointer"
+                              >
+                                Pay Now
+                              </button>
+                            </div>
+                          )}
                         </td>
 
                         {/* Status Column */}
-                        <td className="py-3">
-                          {renderStatusBadge(req.status)}
+                        <td className="py-3 px-3">
+                          {req.status === 'pending' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Pending
+                            </span>
+                          )}
+                          {(req.status === 'accepted' || req.status === 'in_foster' || req.status === 'active') && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-[#16a34a] dark:bg-emerald-950/40 dark:text-emerald-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#16a34a]" />
+                              Approved
+                            </span>
+                          )}
+                          {(req.status === 'rejected' || req.status === 'cancelled') && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              Rejected
+                            </span>
+                          )}
                         </td>
 
-                        {/* Action Column */}
-                        <td className="py-3 text-right pr-1">
-                          <button
-                            id={`view-details-${req._id}`}
-                            type="button"
-                            onClick={() => handleOpenDetail(req)}
-                            className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg border border-[#16a34a] text-[#16a34a] hover:bg-[#eaf7f0] dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 text-xs font-semibold transition-colors cursor-pointer"
-                          >
-                            View Details
-                          </button>
+                        {/* Actions */}
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isPaid && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPaymentSuccessReceipt({
+                                    id: `rcpt-${req._id}`,
+                                    txnId: req.paymentId || 'RZP-live-paid',
+                                    petName: req.pet.name,
+                                    amount: req.paidAmount || 3500,
+                                    serviceType: 'Foster Care Caregiver Charges',
+                                    date: new Date(req.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                                    invoiceNumber: `INV-${req._id.slice(-6).toUpperCase()}`,
+                                    method: 'Razorpay Escrow Gateway',
+                                  });
+                                  setPaymentModalOpen(true);
+                                }}
+                                className="px-2 py-1 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-[10px] font-bold cursor-pointer"
+                              >
+                                Receipt
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDetail(req)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-mist-800 hover:bg-slate-200 text-slate-700 dark:text-bone text-[11px] font-semibold transition-colors cursor-pointer"
+                            >
+                              Details
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ═════════════════════════════════════════════════════
+              5. FOSTER CARE PACKAGES & ESCROW DEPOSITS
+          ═════════════════════════════════════════════════════ */}
+          <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#eaf7f0] dark:bg-emerald-950/50 flex items-center justify-center text-[#16a34a] dark:text-emerald-400">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
+                    Foster Care Escrow Packages
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-bone/60">
+                    Pre-fund caregiver allowances with Razorpay protection.
+                  </p>
+                </div>
               </div>
-            )}
+
+              <span className="text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                Key: {RAZORPAY_KEY_ID.slice(0, 12)}…
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {FOSTER_PAYMENT_PACKAGES.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className="p-4 rounded-xl border border-slate-200/70 dark:border-mist-800 hover:border-emerald-300 transition-colors flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-xs text-slate-800 dark:text-bone">{pkg.label}</h4>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+                        {pkg.tag}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-bone/60 mt-1 leading-snug">{pkg.desc}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-mist-800">
+                    <span className="font-extrabold text-sm text-[#16a34a]">₹{pkg.amount}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPackageId(pkg.id);
+                        handleOpenPayment();
+                      }}
+                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold cursor-pointer"
+                    >
+                      Fund via Razorpay
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ═════════════════════════════════════════════════════
+              6. COMMUNITY FEEDBACK
+          ═════════════════════════════════════════════════════ */}
+          <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="font-display text-base font-bold text-slate-900 dark:text-bone">
+                    Community Stories & Experiences
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-bone/60">
+                    Real foster stories from owners across India.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFeedbackModalOpen(true)}
+                className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+              >
+                Share Story
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {feedbacks.slice(0, 3).map((fb) => (
+                <div key={fb.id} className="p-3.5 rounded-xl border border-slate-100 dark:border-mist-800 bg-slate-50/50 dark:bg-mist-900/20 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-xs text-slate-800 dark:text-bone">{fb.name}</span>
+                      <span className="text-amber-400 text-xs">{'★'.repeat(fb.rating)}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-bone/80 italic leading-snug">"{fb.comment}"</p>
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-2 block">{fb.timeAgo}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>
 
-        {/* ── RIGHT COLUMN (Widgets) ────────────────────────── */}
+        {/* ── RIGHT COLUMN: SIDEBAR WIDGETS ──────────────────── */}
         <div className="space-y-6">
 
-          {/* ═══════════════════════════════════════════════════
-              PET CARE TIPS WIDGET (Clickable interactive tips)
-          ═══════════════════════════════════════════════════ */}
-          <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">💡</span>
-              <h3 className="font-display text-sm font-bold text-slate-900 dark:text-bone">
-                Pet Care Tips
-              </h3>
-            </div>
-            <ul className="space-y-2">
-              {PET_CARE_TIPS.map((tip) => (
-                <li key={tip.id}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTip(tip)}
-                    className="w-full text-left flex items-center gap-3 p-2 rounded-xl hover:bg-[#eaf7f0]/60 dark:hover:bg-mist-800/40 transition-colors group cursor-pointer"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-[#eaf7f0] dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
-                      {tip.icon}
-                    </div>
-                    <p className="text-xs text-slate-700 dark:text-bone/80 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 flex-1 leading-snug font-medium transition-colors">
-                      {tip.text}
-                    </p>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors shrink-0" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* ═══════════════════════════════════════════════════
-              TEMPORARY CARE CREATES A BRIGHTER FUTURE CARD
-          ═══════════════════════════════════════════════════ */}
-          <div className="rounded-2xl border border-[#bfe7d1]/80 dark:border-emerald-800/50 bg-[#eef8f3] dark:bg-emerald-950/30 overflow-hidden shadow-xs">
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-1.5">
-                <Heart className="h-4 w-4 text-rose-500 fill-rose-500" />
-                <h3 className="text-xs font-bold text-[#14532d] dark:text-emerald-300">
-                  Temporary Care Creates a Brighter Future
-                </h3>
-              </div>
-              <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 leading-relaxed">
-                Your pet is in good hands with a loving foster home.
-              </p>
-            </div>
-
-            {/* Illustration of golden puppy & tabby kitten on grassy hill with hearts */}
-            <div className="w-full h-36 overflow-hidden">
-              <img
-                src="/foster-bright-future.jpg"
-                alt="Puppy and kitten on green hill with hearts"
-                className="w-full h-full object-cover object-center"
-              />
-            </div>
-          </div>
-
-          {/* ═══════════════════════════════════════════════════
-              QUICK LINKS WIDGET
-          ═══════════════════════════════════════════════════ */}
-          <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-5 shadow-xs">
-            <h3 className="font-display text-sm font-bold text-slate-900 dark:text-bone mb-3">
-              Quick Links
+          {/* Widget 1: Request Status Quick Filter */}
+          <div className="rounded-2xl border border-slate-200/80 dark:border-mist-800 bg-white dark:bg-ink-soft p-4 shadow-xs">
+            <h3 className="text-xs font-bold text-slate-700 dark:text-bone mb-3 uppercase tracking-wider">
+              Request Status
             </h3>
-            <ul className="space-y-1">
-              {[
-                { label: 'My Pets', icon: '🐾', href: '/owner/pets' },
-                { label: 'Adoption', icon: '❤️', href: '/owner/adoption' },
-                { label: 'Messages', icon: '💬', href: '/owner/messages' },
-                { label: 'Support & Help', icon: '🎧', href: '/help' },
-              ].map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-mist-800/40 transition-colors group"
-                  >
-                    <span className="text-sm w-7 h-7 flex items-center justify-center bg-slate-100 dark:bg-mist-800 rounded-lg">
-                      {link.icon}
-                    </span>
-                    <span className="text-xs font-semibold text-slate-700 dark:text-bone/80 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors flex-1">
-                      {link.label}
-                    </span>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('all')}
+                className={`w-full flex items-center justify-between p-2 rounded-xl transition-colors cursor-pointer ${
+                  statusFilter === 'all' ? 'bg-[#eaf7f0] font-bold text-[#166534]' : 'hover:bg-slate-50'
+                }`}
+              >
+                <span>All Requests</span>
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">
+                  {requests.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter('pending')}
+                className={`w-full flex items-center justify-between p-2 rounded-xl transition-colors cursor-pointer ${
+                  statusFilter === 'pending' ? 'bg-[#eaf7f0] font-bold text-[#166534]' : 'hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Pending
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                  {countPending}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter('accepted')}
+                className={`w-full flex items-center justify-between p-2 rounded-xl transition-colors cursor-pointer ${
+                  statusFilter === 'accepted' ? 'bg-[#eaf7f0] font-bold text-[#166534]' : 'hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#16a34a]" /> Approved
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  {countApproved}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter('rejected')}
+                className={`w-full flex items-center justify-between p-2 rounded-xl transition-colors cursor-pointer ${
+                  statusFilter === 'rejected' ? 'bg-[#eaf7f0] font-bold text-[#166534]' : 'hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" /> Rejected
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold">
+                  {countRejected}
+                </span>
+              </button>
+            </div>
           </div>
 
-          {/* ═══════════════════════════════════════════════════
-              BOTTOM MOTIF CARD (Puppy and kitten quote)
-          ═══════════════════════════════════════════════════ */}
-          <div className="rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/60 to-teal-50/60 dark:from-emerald-950/20 dark:to-teal-950/20 p-4 text-center">
-            <div className="text-2xl mb-1.5 select-none">🐾</div>
-            <p className="text-xs font-bold text-[#14532d] dark:text-emerald-300">
-              Every pet deserves a safe home.
+          {/* Widget 2: Razorpay Live Escrow Info Card */}
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50 to-white dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-ink p-4 shadow-xs space-y-3">
+            <div className="flex items-center gap-2 text-[#166534] dark:text-emerald-300">
+              <ShieldCheck className="h-5 w-5" />
+              <h4 className="font-bold text-xs">Direct Caregiver Escrow</h4>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-bone/80 leading-relaxed">
+              When you ask for foster care, you can pre-fund daily meals and care charges securely via Razorpay. Caregiver is reimbursed safely upon confirmed intake.
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-bone/60 mt-0.5">
-              Your care makes a difference.
-            </p>
-            <Heart className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500 mx-auto mt-2 opacity-80" />
+            <div className="p-2.5 rounded-xl bg-white/80 dark:bg-ink-soft border border-emerald-100 dark:border-emerald-800/40 text-[10px] text-slate-500 space-y-1">
+              <div className="flex justify-between">
+                <span>Gateway:</span>
+                <span className="font-bold text-slate-800 dark:text-bone">Razorpay Live</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Key ID:</span>
+                <span className="font-mono text-emerald-700">{RAZORPAY_KEY_ID}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Escrow Hold:</span>
+                <span className="font-bold text-emerald-600">Until Intake Verified</span>
+              </div>
+            </div>
           </div>
 
         </div>
+
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
-          DETAIL MODAL: Full View, Open, Show & Accepted Features
-      ═══════════════════════════════════════════════════════ */}
+      {/* ═════════════════════════════════════════════════════════════
+          MODAL: REQUEST TEMPORARY FOSTER CARE (Matching media_1792660530727.png)
+      ═════════════════════════════════════════════════════ */}
+      {isRequestModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => e.target === e.currentTarget && setRequestModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-xl rounded-2xl bg-[#131b17] border border-emerald-800/60 shadow-2xl overflow-hidden text-bone"
+            style={{ maxHeight: '94vh' }}
+          >
+            {/* Header matching screenshot */}
+            <div className="px-6 py-4 flex items-center justify-between border-b border-emerald-900/60 bg-[#17231d]">
+              <div>
+                <h2 className="text-lg font-serif font-bold text-emerald-100 tracking-wide">
+                  Request Temporary Foster Care
+                </h2>
+                <p className="text-[11px] text-emerald-400/80">
+                  Provide pet details and offer care budget directly to verified caregivers
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRequestModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto p-6 space-y-4 text-xs" style={{ maxHeight: 'calc(94vh - 75px)' }}>
+              {serverError && (
+                <div className="rounded-xl bg-rose-950/50 border border-rose-800 p-3 text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{serverError}</span>
+                </div>
+              )}
+
+              {/* 1. Select Pet * */}
+              <div>
+                <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                  Select Pet <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedPetId}
+                    onChange={(e) => {
+                      setSelectedPetId(e.target.value);
+                      setValue('petId', e.target.value);
+                    }}
+                    className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] py-2.5 pl-3 pr-8 text-bone focus:outline-none focus:border-emerald-500 cursor-pointer font-medium"
+                  >
+                    {pets.map((p: any) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name} ({p.species} • {p.breed || 'Ragdoll'})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronRight className="absolute right-3 top-3 h-3.5 w-3.5 text-emerald-400 rotate-90 pointer-events-none" />
+                </div>
+
+                {/* Pet Preview Card matching screenshot (white card) */}
+                <div className="mt-2 p-3 rounded-xl bg-white text-slate-800 shadow-sm flex items-center gap-3">
+                  <img
+                    src={selectedPet.images?.[0]?.url || '/pets/cat_tabby.jpg'}
+                    alt={selectedPet.name}
+                    className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                  />
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">{selectedPet.name}</h4>
+                    <p className="text-xs text-slate-500 capitalize">
+                      {selectedPet.species} • {selectedPet.age || 4} yrs • {selectedPet.breed || 'unknown'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Row: Owner Name + Contact Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                    Owner Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] py-2.5 pl-9 pr-3 text-bone focus:outline-none focus:border-emerald-500"
+                      {...register('ownerName')}
+                      placeholder="petowner"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                    Contact Phone / Email
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] py-2.5 pl-9 pr-3 text-bone focus:outline-none focus:border-emerald-500"
+                      {...register('contactInfo')}
+                      placeholder="petowner@gmail.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Row: Number of Days Required + Offered Budget / Care Charges */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                    Number of Days Required
+                  </label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] py-2.5 pl-9 pr-3 text-bone focus:outline-none focus:border-emerald-500"
+                      {...register('durationDays')}
+                      placeholder="e.g. 14"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-200 mb-1.5 flex items-center justify-between">
+                    <span>Offered Budget / Care Charges (₹)</span>
+                    <span className="text-[10px] text-emerald-400 font-bold">Razorpay Live</span>
+                  </label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <input
+                      type="number"
+                      min={100}
+                      step={50}
+                      className="w-full text-xs rounded-xl border border-emerald-700 bg-[#1c2922] py-2.5 pl-9 pr-3 text-emerald-300 font-extrabold focus:outline-none focus:border-emerald-400"
+                      {...register('offeredCharges')}
+                      placeholder="₹ e.g. 3500 (optional)"
+                    />
+                  </div>
+                  {/* Preset chips */}
+                  <div className="flex gap-1.5 mt-1.5">
+                    {[500, 1500, 3500, 5000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setValue('offeredCharges', amt)}
+                        className="px-2 py-0.5 rounded-lg text-[10px] bg-emerald-950 hover:bg-emerald-800 text-emerald-300 font-semibold cursor-pointer border border-emerald-800/60"
+                      >
+                        ₹{amt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Row: Preferred Start Date + Preferred End Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                    Preferred Start Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <input
+                      type="date"
+                      className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] py-2.5 pl-9 pr-3 text-bone focus:outline-none focus:border-emerald-500 cursor-pointer"
+                      {...register('startDate')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                    Preferred End Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-emerald-500 pointer-events-none" />
+                    <input
+                      type="date"
+                      className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] py-2.5 pl-9 pr-3 text-bone focus:outline-none focus:border-emerald-500 cursor-pointer"
+                      {...register('endDate')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Reason for Foster Care */}
+              <div>
+                <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                  Reason for Foster Care
+                </label>
+                <textarea
+                  rows={2}
+                  className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] p-2.5 text-bone placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 resize-none"
+                  placeholder="e.g. Work travel, home relocation, temporary medical treatment..."
+                  {...register('reason')}
+                />
+              </div>
+
+              {/* 6. Additional Requirements / Special Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-emerald-200 mb-1.5">
+                  Additional Requirements / Special Notes
+                </label>
+                <textarea
+                  rows={2}
+                  className="w-full text-xs rounded-xl border border-emerald-900/80 bg-[#1c2922] p-2.5 text-bone placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 resize-none"
+                  placeholder="e.g. Diet routine, medications, hypoallergenic, doesn't like loud sounds..."
+                  {...register('additionalNotes')}
+                />
+              </div>
+
+              {/* 7. Razorpay Escrow Info Box */}
+              <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/80 text-emerald-300 flex items-center gap-2.5">
+                <ShieldCheck className="h-5 w-5 text-emerald-400 shrink-0" />
+                <p className="text-[11px] leading-tight">
+                  <span className="font-bold">Secured via Razorpay Escrow ({RAZORPAY_KEY_ID}):</span>{' '}
+                  Money is held safely until foster intake is confirmed by caregiver.
+                </p>
+              </div>
+
+              {/* 8. Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-emerald-900/60">
+                <button
+                  type="button"
+                  onClick={() => setRequestModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-emerald-900 text-slate-300 hover:bg-emerald-950/40 text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmitting || isProcessingPayment}
+                  onClick={handleSubmit(onSubmit)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-bone text-xs font-semibold cursor-pointer"
+                >
+                  Submit (Pay Later)
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmitting || isProcessingPayment}
+                  onClick={handleSubmit(handlePayAndSubmit)}
+                  className="px-6 py-2.5 rounded-xl bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-extrabold flex items-center gap-2 shadow-md shadow-emerald-700/30 cursor-pointer disabled:opacity-50"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  <span>{isProcessingPayment ? 'Opening Razorpay…' : `Pay ₹${watchedCharges || 3500} via Razorpay & Send`}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════
+          DETAIL MODAL: VIEW DETAILS & ACCEPT REQUEST
+      ═════════════════════════════════════════════════════ */}
       {activeDetail && (
         <Modal
           isOpen={!!activeDetail}
@@ -1212,112 +1913,101 @@ const OwnerFoster = () => {
           title={`Foster Request: ${activeDetail.pet.name}`}
         >
           <div className="space-y-4 text-xs">
-            {/* Header info */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-mist-800">
-              <span className="text-slate-500 font-mono text-[11px]">
-                Submitted on {formatDateDisplay(activeDetail.createdAt)}
-              </span>
-              <div>{renderStatusBadge(activeDetail.status)}</div>
-            </div>
-
-            {/* Pet Card inside detail */}
-            <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 dark:bg-mist-800/40 border border-slate-200/80 dark:border-mist-700">
-              <img
-                src={activeDetail.pet.images?.[0]?.url || '/pet-bruno.jpg'}
-                alt={activeDetail.pet.name}
-                className="w-14 h-14 rounded-xl object-cover border border-slate-200 dark:border-mist-700 shrink-0"
-              />
-              <div className="space-y-0.5 flex-1">
-                <p className="font-bold text-sm text-slate-900 dark:text-bone">
-                  {activeDetail.pet.name}
-                </p>
-                <p className="text-slate-500 capitalize">
-                  Species: {activeDetail.pet.species}
-                </p>
-                {activeDetail.durationDays && (
-                  <p className="flex items-center gap-1 text-slate-600 dark:text-bone/70">
-                    <Clock className="h-3 w-3 text-emerald-600" />
-                    Duration: ~{activeDetail.durationDays} days
+            {/* Status & Pet Header */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-mist-800/40">
+              <div className="flex items-center gap-3">
+                <img
+                  src={activeDetail.pet.images?.[0]?.url || '/pets/dog_golden.jpg'}
+                  alt={activeDetail.pet.name}
+                  className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                />
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-bone">
+                    {activeDetail.pet.name}
+                  </h3>
+                  <p className="text-slate-500 dark:text-bone/60 capitalize">
+                    {activeDetail.pet.species} • Requested by {activeDetail.requestedBy?.name || 'Owner'}
                   </p>
+                </div>
+              </div>
+
+              <div>
+                {activeDetail.status === 'pending' && (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Pending</span>
+                )}
+                {(activeDetail.status === 'accepted' || activeDetail.status === 'in_foster' || activeDetail.status === 'active') && (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Approved</span>
+                )}
+                {(activeDetail.status === 'rejected' || activeDetail.status === 'cancelled') && (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800">Rejected</span>
                 )}
               </div>
             </div>
 
-            {/* Foster Home Provider Info or Assignment */}
-            <div>
-              <p className="font-bold text-slate-700 dark:text-bone/90 uppercase tracking-wider text-[10px] mb-1.5">
-                Foster Provider Status
-              </p>
-              {activeDetail.fosterProvider ? (
-                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 space-y-1">
-                  <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold">
-                    <Users className="h-4 w-4" />
-                    <span>Assigned Caregiver: {activeDetail.fosterProvider.name}</span>
-                  </div>
-                  <p className="text-emerald-700/80 dark:text-emerald-400 text-[11px] flex items-center gap-1.5">
-                    <Phone className="h-3 w-3" /> Contact: +1 (555) 234-5678 • Verified Foster Home
-                  </p>
-                  <p className="text-emerald-700/80 dark:text-emerald-400 text-[11px]">
-                    Status: Request accepted & caregiver ready for intake
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
-                    <Clock className="h-4 w-4 shrink-0" />
-                    <span>Awaiting foster home assignment…</span>
-                  </div>
-                  {/* ACCEPT / APPROVE REQUEST BUTTON (Fulfills "accepted all feature"!) */}
-                  <button
-                    id="approve-accept-btn"
-                    type="button"
-                    onClick={() => handleAcceptRequest(activeDetail._id)}
-                    className="inline-flex items-center gap-1 bg-[#16a34a] hover:bg-[#15803d] text-white px-3 py-1.5 rounded-lg font-bold text-[11px] shadow-xs cursor-pointer transition-colors"
-                  >
-                    <CheckCircle2 className="h-3 w-3" /> Approve / Accept Request
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Details & Instructions */}
-            <div>
-              <p className="font-bold text-slate-700 dark:text-bone/90 uppercase tracking-wider text-[10px] mb-1.5">
-                Details & Special Instructions
-              </p>
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-mist-800/40 border border-slate-200/80 dark:border-mist-700 text-slate-700 dark:text-bone whitespace-pre-line leading-relaxed min-h-[50px]">
-                {activeDetail.reason || 'No additional instructions provided.'}
+            {/* Provider & Instructions */}
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-mist-700 space-y-2">
+              <div className="flex items-center justify-between text-slate-600 dark:text-bone/70">
+                <span className="font-semibold">Assigned Foster Caregiver:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {activeDetail.fosterProvider?.name || 'Awaiting assignment'}
+                </span>
+              </div>
+              <div className="text-slate-700 dark:text-bone/90 whitespace-pre-line leading-relaxed">
+                {activeDetail.reason || 'No specific notes recorded.'}
               </div>
             </div>
 
-            {/* Interactive Messages Thread */}
-            <div>
-              <p className="font-bold text-slate-700 dark:text-bone/90 uppercase tracking-wider text-[10px] mb-1.5 flex items-center justify-between">
-                <span>Caregiver Communication</span>
-                <span className="text-slate-400 font-normal">{activeDetail.messages?.length || 0} messages</span>
+            {/* Escrow Payment Proof */}
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                  Razorpay Escrow Status
+                </span>
+                <span className="text-[10px] font-mono text-slate-500">
+                  Key: {RAZORPAY_KEY_ID.slice(0, 10)}…
+                </span>
+              </div>
+              <p className="text-slate-600 dark:text-bone/80 text-[11px]">
+                {activeDetail.paidAmount || activeDetail.paymentStatus === 'paid' || activeDetail.reason?.includes('Care Escrow Paid') ? (
+                  <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                    ✓ ₹{activeDetail.paidAmount || 3500} secured via Razorpay ({activeDetail.paymentId || 'RZP-live-paid'})
+                  </span>
+                ) : (
+                  <span>No advance payment paid yet. You can fund care charges directly.</span>
+                )}
               </p>
-              <div className="space-y-2 max-h-36 overflow-y-auto pr-1 rounded-xl p-2.5 bg-slate-50 dark:bg-mist-800/30 border border-slate-200/80 dark:border-mist-700">
+              {!activeDetail.paidAmount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleOpenPayment(activeDetail);
+                  }}
+                  className="mt-1 px-3 py-1 bg-[#16a34a] text-white rounded-lg font-bold text-[10px] cursor-pointer"
+                >
+                  Pay Care Charges via Razorpay
+                </button>
+              )}
+            </div>
+
+            {/* Message Thread */}
+            <div>
+              <p className="font-bold text-slate-800 dark:text-bone mb-2">
+                Messages & Communication
+              </p>
+              <div className="space-y-2 max-h-44 overflow-y-auto p-2 rounded-xl bg-slate-50 dark:bg-mist-900/30 border border-slate-200 dark:border-mist-700">
                 {activeDetail.messages && activeDetail.messages.length > 0 ? (
-                  activeDetail.messages.map((msg, i) => (
-                    <div key={i} className="flex gap-2">
-                      <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 flex items-center justify-center font-bold text-[10px] shrink-0">
-                        {msg.sender?.name?.charAt(0) || 'U'}
+                  activeDetail.messages.map((m: any, idx: number) => (
+                    <div key={idx} className="p-2 rounded-lg bg-white dark:bg-ink-soft shadow-2xs text-[11px]">
+                      <div className="flex justify-between text-slate-400 text-[10px]">
+                        <span className="font-semibold text-slate-700 dark:text-bone">{m.sender.name}</span>
+                        <span>{new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <div className="flex-1 bg-white dark:bg-ink rounded-lg p-2 border border-slate-100 dark:border-mist-800">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="font-bold text-[11px] text-slate-800 dark:text-bone">
-                            {msg.sender?.name}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {formatDateDisplay(msg.sentAt)}
-                          </span>
-                        </div>
-                        <p className="text-slate-600 dark:text-bone/80 text-[11px]">{msg.text}</p>
-                      </div>
+                      <p className="mt-1 text-slate-800 dark:text-bone/90">{m.text}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-center py-2 text-slate-400 text-[11px]">No messages yet.</p>
+                  <p className="text-center text-slate-400 py-3">No messages yet.</p>
                 )}
               </div>
 
@@ -1327,118 +2017,65 @@ const OwnerFoster = () => {
                   type="text"
                   value={newMessageText}
                   onChange={(e) => setNewMessageText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="Type a message to caregiver or foster home…"
-                  className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink px-3 py-2 text-slate-800 dark:text-bone focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  placeholder="Type a message to the foster home..."
+                  className="flex-1 text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2 text-slate-800 dark:text-bone"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(activeDetail._id)}
                 />
                 <button
                   type="button"
-                  onClick={handleSendMessage}
-                  className="bg-[#16a34a] hover:bg-[#15803d] text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                  onClick={() => handleSendMessage(activeDetail._id)}
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Send
                 </button>
               </div>
             </div>
 
-            {/* Modal Action Buttons */}
+            {/* Actions: Accept / Reject / Close */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-mist-800">
-              <div className="flex gap-2">
-                {/* Accept Foster Button if pending */}
-                {activeDetail.status === 'pending' && (
-                  <button
-                    type="button"
-                    onClick={() => handleAcceptRequest(activeDetail._id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white font-bold text-xs cursor-pointer shadow-xs"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Accept Request
-                  </button>
-                )}
-
-                {/* Complete Placement Button if accepted / active */}
-                {(activeDetail.status === 'accepted' || activeDetail.status === 'active') && (
-                  <button
-                    type="button"
-                    onClick={() => handleCompleteRequest(activeDetail._id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white font-bold text-xs cursor-pointer shadow-xs"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Mark Completed
-                  </button>
-                )}
-
-                {/* Cancel Button if still pending */}
-                {activeDetail.status === 'pending' && (
-                  <button
-                    type="button"
-                    onClick={() => handleCancelRequest(activeDetail._id)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-300 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold cursor-pointer"
-                  >
-                    <XCircle className="h-3.5 w-3.5" /> Cancel Request
-                  </button>
-                )}
-              </div>
-
               <button
                 type="button"
                 onClick={() => setActiveDetail(null)}
-                className="px-4 py-1.5 rounded-lg border border-slate-200 dark:border-mist-700 text-slate-700 dark:text-bone hover:bg-slate-100 dark:hover:bg-mist-800 text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-mist-700 text-slate-700 dark:text-bone font-semibold"
               >
                 Close
               </button>
-            </div>
-          </div>
-        </Modal>
-      )}
 
-      {/* ═══════════════════════════════════════════════════════
-          PET CARE TIP DETAIL MODAL
-      ═══════════════════════════════════════════════════════ */}
-      {activeTip && (
-        <Modal
-          isOpen={!!activeTip}
-          onClose={() => setActiveTip(null)}
-          title={activeTip.title}
-        >
-          <div className="space-y-4 text-xs text-slate-700 dark:text-bone">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-[#eaf7f0] dark:bg-emerald-950/40 border border-[#bbf0d6] dark:border-emerald-800/50">
-              <div className="w-9 h-9 rounded-xl bg-[#16a34a] flex items-center justify-center text-white shrink-0">
-                {activeTip.icon}
+              <div className="flex gap-2">
+                {activeDetail.status === 'pending' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleRejectRequest(activeDetail._id)}
+                      className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 cursor-pointer"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptRequest(activeDetail._id)}
+                      className="px-4 py-2 rounded-xl bg-[#16a34a] hover:bg-[#15803d] text-white font-bold cursor-pointer"
+                    >
+                      Accept & Assign Foster
+                    </button>
+                  </>
+                )}
               </div>
-              <p className="font-bold text-sm text-[#14532d] dark:text-emerald-300">
-                {activeTip.text}
-              </p>
-            </div>
-            <p className="leading-relaxed text-slate-600 dark:text-bone/80 text-sm">
-              {activeTip.description}
-            </p>
-            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-mist-800">
-              <button
-                type="button"
-                onClick={() => setActiveTip(null)}
-                className="px-4 py-2 rounded-xl bg-[#16a34a] text-white font-bold text-xs cursor-pointer"
-              >
-                Got It
-              </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          ADD NEW PET MODAL
-      ═══════════════════════════════════════════════════════ */}
+      {/* ═════════════════════════════════════════════════════════════
+          ADD PET MODAL
+      ═════════════════════════════════════════════════════ */}
       {isAddPetModalOpen && (
         <Modal
           isOpen={isAddPetModalOpen}
           onClose={() => setAddPetModalOpen(false)}
           title="Add New Pet"
         >
-          <form onSubmit={handleCreateNewPet} className="space-y-3.5 text-xs">
+          <form onSubmit={handleAddNewPet} className="space-y-4 text-xs">
             <div>
               <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">
                 Pet Name <span className="text-rose-500">*</span>
@@ -1446,10 +2083,10 @@ const OwnerFoster = () => {
               <input
                 type="text"
                 required
-                value={newPetForm.name}
-                onChange={(e) => setNewPetForm({ ...newPetForm, name: e.target.value })}
-                placeholder="e.g. Rocky, Bella"
-                className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                value={newPetName}
+                onChange={(e) => setNewPetName(e.target.value)}
+                placeholder="e.g. bittu"
+                className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone"
               />
             </div>
 
@@ -1459,17 +2096,13 @@ const OwnerFoster = () => {
                   Species
                 </label>
                 <select
-                  value={newPetForm.species}
-                  onChange={(e) =>
-                    setNewPetForm({
-                      ...newPetForm,
-                      species: e.target.value as 'dog' | 'cat' | 'bird' | 'other',
-                    })
-                  }
-                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone"
+                  value={newPetSpecies}
+                  onChange={(e) => setNewPetSpecies(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone cursor-pointer"
                 >
                   <option value="dog">Dog</option>
                   <option value="cat">Cat</option>
+                  <option value="rabbit">Rabbit</option>
                   <option value="bird">Bird</option>
                   <option value="other">Other</option>
                 </select>
@@ -1477,14 +2110,13 @@ const OwnerFoster = () => {
 
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">
-                  Age (Years)
+                  Breed
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  max="30"
-                  value={newPetForm.age}
-                  onChange={(e) => setNewPetForm({ ...newPetForm, age: Number(e.target.value) })}
+                  type="text"
+                  value={newPetBreed}
+                  onChange={(e) => setNewPetBreed(e.target.value)}
+                  placeholder="e.g. Ragdoll / Golden"
                   className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone"
                 />
               </div>
@@ -1493,53 +2125,263 @@ const OwnerFoster = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">
-                  Breed
+                  Age (years)
                 </label>
                 <input
-                  type="text"
-                  value={newPetForm.breed}
-                  onChange={(e) => setNewPetForm({ ...newPetForm, breed: e.target.value })}
-                  placeholder="e.g. Golden Retriever"
+                  type="number"
+                  min={0}
+                  value={newPetAge}
+                  onChange={(e) => setNewPetAge(e.target.value)}
                   className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone"
                 />
               </div>
 
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">
-                  Gender
+                  Health Status
                 </label>
-                <select
-                  value={newPetForm.gender}
-                  onChange={(e) =>
-                    setNewPetForm({
-                      ...newPetForm,
-                      gender: e.target.value as 'male' | 'female',
-                    })
-                  }
+                <input
+                  type="text"
+                  value={newPetHealth}
+                  onChange={(e) => setNewPetHealth(e.target.value)}
+                  placeholder="e.g. Healthy, Vaccinated"
                   className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2.5 text-slate-800 dark:text-bone"
-                >
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                </select>
+                />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-mist-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-mist-800">
               <button
                 type="button"
                 onClick={() => setAddPetModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-mist-700 text-slate-700 dark:text-bone text-xs font-semibold"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-bold shadow-xs cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-[#16a34a] hover:bg-[#15803d] text-white font-bold"
               >
-                Save & Select Pet
+                Save Pet
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════
+          PAYMENT GATEWAY & RECEIPT MODAL
+      ═════════════════════════════════════════════════════ */}
+      {isPaymentModalOpen && (
+        <Modal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          title="Foster Care Escrow & Booking Fee"
+        >
+          {paymentSuccessReceipt ? (
+            <div className="space-y-4 text-xs">
+              <div className="text-center p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto mb-2" />
+                <h3 className="font-bold text-sm text-emerald-900 dark:text-emerald-200">
+                  Payment Confirmed via Razorpay!
+                </h3>
+                <p className="text-emerald-700 dark:text-emerald-400 mt-1">
+                  Transaction ID: <span className="font-mono font-bold">{paymentSuccessReceipt.txnId}</span>
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Amount: <span className="font-bold">₹{paymentSuccessReceipt.amount}</span> • Pet: {paymentSuccessReceipt.petName}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-mist-700 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Invoice:</span>
+                  <span className="font-bold">{paymentSuccessReceipt.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Service:</span>
+                  <span className="font-medium">{paymentSuccessReceipt.serviceType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Date:</span>
+                  <span>{paymentSuccessReceipt.date}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Protection:</span>
+                  <span className="text-emerald-600 font-bold">100% Escrow Protected</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl border border-slate-200 flex items-center gap-1.5 font-bold cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" /> Print Receipt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentModalOpen(false)}
+                  className="px-5 py-2 bg-[#16a34a] text-white rounded-xl font-bold cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-[#eaf7f0] border border-[#bbf0d6] text-[#166534] flex items-center gap-2.5">
+                <ShieldCheck className="h-5 w-5 shrink-0 text-[#16a34a]" />
+                <p className="leading-tight">
+                  <span className="font-bold">Razorpay Live Gateway Active: </span>
+                  Funds are secured in escrow and only disbursed once certified foster placement begins.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-2 text-slate-800 dark:text-bone">
+                  Select Foster Care Package
+                </label>
+                <div className="space-y-2">
+                  {FOSTER_PAYMENT_PACKAGES.map((pkg) => {
+                    const isSelected = selectedPackageId === pkg.id;
+                    return (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPackageId(pkg.id);
+                          setCustomAmount('');
+                        }}
+                        className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-[#16a34a] bg-[#f0fbf5] dark:bg-emerald-950/30'
+                            : 'border-slate-200 dark:border-mist-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-bone">{pkg.label}</span>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              {pkg.tag}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{pkg.desc}</p>
+                        </div>
+                        <span className="font-extrabold text-sm text-[#16a34a] shrink-0 ml-3">
+                          ₹{pkg.amount}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">
+                  Or Custom Escrow Amount (INR ₹)
+                </label>
+                <input
+                  type="number"
+                  min="100"
+                  step="50"
+                  placeholder="e.g. 3500"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 p-2.5"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-mist-800">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <Lock className="h-3.5 w-3.5 text-emerald-600" /> Key: {RAZORPAY_KEY_ID.slice(0, 12)}…
+                </span>
+
+                <button
+                  type="button"
+                  disabled={isProcessingPayment}
+                  onClick={handleExecuteRazorpay}
+                  className="px-6 py-2.5 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-xl font-bold flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-700/20 disabled:opacity-50"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  <span>{isProcessingPayment ? 'Connecting Razorpay…' : `Pay ₹${customAmount || (FOSTER_PAYMENT_PACKAGES.find((p) => p.id === selectedPackageId)?.amount || 3500)} via Razorpay`}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════
+          COMMUNITY FEEDBACK MODAL
+      ═════════════════════════════════════════════════════ */}
+      {isFeedbackModalOpen && (
+        <Modal
+          isOpen={isFeedbackModalOpen}
+          onClose={() => setFeedbackModalOpen(false)}
+          title="Community Feedback & Stories"
+        >
+          <div className="space-y-4 text-xs">
+            <p className="text-slate-500">
+              Read real stories from pet owners and foster caregivers across our community.
+            </p>
+
+            <div className="space-y-3 max-h-60 overflow-y-auto">
+              {feedbacks.map((fb) => (
+                <div key={fb.id} className="p-3 rounded-xl bg-slate-50 dark:bg-mist-800/40 border border-slate-100">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-slate-900 dark:text-bone">{fb.name}</span>
+                    <span className="text-amber-400">{'★'.repeat(fb.rating)}</span>
+                  </div>
+                  <p className="text-slate-600 dark:text-bone/80 italic">"{fb.comment}"</p>
+                  <span className="text-[10px] text-slate-400 mt-1 block">{fb.timeAgo}</span>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handleAddFeedback} className="pt-3 border-t border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-slate-800 dark:text-bone">Share Your Story</h4>
+                <div className="flex items-center gap-1 text-base text-amber-400">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setNewFeedbackRating(s)}
+                      className="cursor-pointer hover:scale-110 transition-transform"
+                    >
+                      {s <= newFeedbackRating ? '★' : '☆'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <input
+                type="text"
+                required
+                placeholder="Your Name"
+                value={newFeedbackName}
+                onChange={(e) => setNewFeedbackName(e.target.value)}
+                className="w-full text-xs rounded-xl border border-slate-200 dark:border-mist-700 bg-white dark:bg-ink p-2"
+              />
+              <textarea
+                required
+                rows={2}
+                placeholder="Share your foster care experience..."
+                value={newFeedbackComment}
+                onChange={(e) => setNewFeedbackComment(e.target.value)}
+                className="w-full text-xs rounded-xl border border-slate-200 p-2 resize-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#16a34a] text-white rounded-xl font-bold cursor-pointer"
+                >
+                  Publish Story
+                </button>
+              </div>
+            </form>
+          </div>
         </Modal>
       )}
 

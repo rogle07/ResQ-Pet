@@ -21,7 +21,9 @@ export const authApi = {
     api.post<AuthResponse>('/auth/login', payload).then((r) => r.data),
 
   googleLogin: (
-    payload: { idToken?: string; accessToken?: string; role?: string } | string,
+    payload:
+      | { idToken?: string; accessToken?: string; role?: string; email?: string; name?: string; avatar?: string }
+      | string,
     role?: string
   ) => {
     const body = typeof payload === 'string' ? { idToken: payload, role } : payload;

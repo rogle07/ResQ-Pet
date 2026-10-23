@@ -39,8 +39,6 @@ import {
   Activity,
   PlusCircle,
   Award,
-  Building2,
-  Cpu,
 } from 'lucide-react';
 
 interface NavItem {
@@ -53,14 +51,12 @@ interface NavItem {
 
 const NAV_BY_ROLE: Record<string, NavItem[]> = {
   owner: [
-    { to: '/owner', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, end: true },
+    { to: '/owner', label: 'Dashboard', icon: <Home className="h-5 w-5" />, end: true },
+    { to: '/owner/pets', label: 'My Pets', icon: <PawPrint className="h-5 w-5" /> },
     { to: '/owner/foster', label: 'Foster Care', icon: <Home className="h-5 w-5" /> },
     { to: '/owner/adoption', label: 'Adoption', icon: <Heart className="h-5 w-5" /> },
-    { to: '/owner/ngo-shelter', label: 'NGO Shelter Care', icon: <Building2 className="h-5 w-5" /> },
-    { to: '/owner/rescue', label: 'Rescue Request', icon: <AlertTriangle className="h-5 w-5" /> },
-    { to: '/owner/found-pets', label: 'Found Pets Board', icon: <Search className="h-5 w-5" /> },
-    { to: '/owner/iot', label: 'ResQ Pet IoT', icon: <Cpu className="h-5 w-5" /> },
-    { to: '/owner/pets', label: 'My Pets', icon: <PawPrint className="h-5 w-5" /> },
+    { to: '/owner/messages', label: 'Messages', icon: <MessageSquare className="h-5 w-5" />, badge: '2' },
+    { to: '/owner/foster#my-requests', label: 'My Requests', icon: <FileText className="h-5 w-5" /> },
     { to: '/owner/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
   ],
   rescue_team: [
@@ -385,6 +381,22 @@ const DashboardLayout = () => {
                 <Phone className="h-3 w-3" /> Contact Now
               </a>
             </div>
+          ) : user?.role === 'owner' ? (
+            <div className="rounded-2xl bg-[#f0fdf4] dark:bg-emerald-950/40 p-3 border border-emerald-100 dark:border-emerald-800/40 text-center space-y-2">
+              <div className="w-20 h-20 rounded-xl overflow-hidden mx-auto shadow-xs border border-emerald-200/60">
+                <img src="/owner-need-help.jpg" alt="Need Help" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-bone block">Need Help?</span>
+                <p className="text-[10px] text-slate-500 dark:text-bone/60 mt-0.5">Our support team is here for you and your pet.</p>
+              </div>
+              <a
+                href="tel:18001237377"
+                className="flex items-center justify-center gap-1.5 w-full rounded-xl bg-[#1e6f42] py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-sm transition-colors"
+              >
+                <Headphones className="h-3.5 w-3.5" /> Contact Support
+              </a>
+            </div>
           ) : (
             <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50/50 p-3.5 border border-emerald-100 dark:from-slate-800/80 dark:to-slate-800/40 dark:border-slate-700/60">
               <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
@@ -429,7 +441,7 @@ const DashboardLayout = () => {
       <div className="flex flex-1 flex-col lg:pl-64 min-w-0">
         {/* Top Navbar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 sm:px-8 backdrop-blur-md dark:border-slate-800/80 dark:bg-[#0f172a]/80">
-          {/* Mobile menu trigger */}
+          {/* Mobile menu trigger & Portal title */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -444,6 +456,18 @@ const DashboardLayout = () => {
               <p className="hidden sm:block text-[11px] font-medium text-slate-400 -mt-0.5">
                 Welcome back, {user?.name || 'Guardian'}
               </p>
+            </div>
+          </div>
+
+          {/* Search bar matching screenshot */}
+          <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search pets, foster homes, resources..."
+                className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 py-2 pl-9 pr-4 text-slate-700 dark:text-bone focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              />
             </div>
           </div>
 
@@ -542,14 +566,19 @@ const DashboardLayout = () => {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+                className="flex items-center gap-2.5 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-800 p-1 pr-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors cursor-pointer"
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 font-bold text-white text-xs">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-700 font-bold text-white text-xs overflow-hidden shadow-xs">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{user?.name?.charAt(0).toUpperCase() || 'S'}</span>
+                  )}
                 </div>
-                <span className="hidden sm:block text-xs font-bold text-slate-800 dark:text-slate-200 max-w-[100px] truncate">
-                  {user?.name?.split(' ')[0] || 'User'}
-                </span>
+                <div className="hidden sm:block text-left text-xs leading-tight">
+                  <p className="font-bold text-slate-800 dark:text-bone max-w-[110px] truncate">{user?.name || 'Suraj Kumar'}</p>
+                  <p className="text-[10px] text-slate-400 capitalize">{user?.role?.replace('_', ' ') || 'Pet Owner'}</p>
+                </div>
                 <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
               </button>
 

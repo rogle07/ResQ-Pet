@@ -22,6 +22,7 @@ const connectDB = async () => {
 
     return conn;
   } catch (error) {
+    mongoose.set('bufferCommands', false);
     logger.warn(`Failed to connect to MongoDB (${error.message}). API will start in offline/mock mode.`);
     return null;
   }
