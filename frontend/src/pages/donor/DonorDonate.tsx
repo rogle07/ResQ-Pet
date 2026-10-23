@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { openRazorpayCheckout } from '@/utils/razorpay';
 import {
   ChevronRight,
   Heart,
@@ -9,6 +10,7 @@ import {
   Smartphone,
   CheckCircle,
   Lock,
+  Loader2,
 } from 'lucide-react';
 import { FEATURED_CAMPAIGNS } from '@/data/donorMockData';
 
@@ -24,6 +26,10 @@ export const DonorDonate: React.FC = () => {
   const [isRecurring, setIsRecurring] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [rzpPaymentId, setRzpPaymentId] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+
   const presets = [250, 500, 1000, 2500, 5000];
 
   const handleSelectPreset = (amt: number) => {
@@ -31,12 +37,42 @@ export const DonorDonate: React.FC = () => {
     setCustomInput(String(amt));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      navigate('/donor/my-donations');
-    }, 2500);
+    setIsProcessing(true);
+    setPaymentError('');
+    const selectedCampaign = FEATURED_CAMPAIGNS.find(c => c.id === selectedCampaignId);
+    try {
+      const response = await openRazorpayCheckout({
+        amount,
+        currency: 'INR',
+        name: 'ResQPet Foundation',
+        description: `Donation – ${selectedCampaign?.title || 'Animal Rescue'}`,
+        image: '/logo.png',
+        prefill: {
+          name: donorName,
+          email: donorEmail,
+          contact: '',
+        },
+        notes: {
+          campaignId: selectedCampaignId,
+          campaignTitle: selectedCampaign?.title || '',
+          panNumber: donorPan,
+          isRecurring: String(isRecurring),
+        },
+        theme: { color: '#7c3aed' },
+      });
+      setRzpPaymentId(response.razorpay_payment_id);
+      setSubmitted(true);
+      setTimeout(() => { navigate('/donor/my-donations'); }, 3000);
+    } catch (err: unknown) {
+      const errMsg = (err as Error)?.message || '';
+      if (!errMsg.includes('cancelled')) {
+        setPaymentError('Payment failed. Please try again.');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -65,6 +101,11 @@ export const DonorDonate: React.FC = () => {
           <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
             Your generous contribution of <strong>₹{amount.toLocaleString()}</strong> has been credited to the rescue fund. Your 80G tax receipt has been emailed.
           </p>
+          {rzpPaymentId && (
+            <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 rounded-lg px-3 py-1.5 inline-block">
+              Razorpay Payment ID: RZP-{rzpPaymentId}
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
@@ -228,6 +269,12 @@ export const DonorDonate: React.FC = () => {
                 </div>
               </div>
 
+              {paymentError && (
+                <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 rounded-xl px-3 py-2">
+                  {paymentError}
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <Link
                   to="/donor"
@@ -237,9 +284,12 @@ export const DonorDonate: React.FC = () => {
                 </Link>
                 <button
                   type="submit"
-                  className="rounded-2xl bg-purple-700 px-6 py-2.5 font-bold text-white hover:bg-purple-800 shadow-md shadow-purple-950/20 transition-all hover:scale-105"
+                  disabled={isProcessing}
+                  className="rounded-2xl bg-purple-700 px-6 py-2.5 font-bold text-white hover:bg-purple-800 shadow-md shadow-purple-950/20 transition-all hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Authorize Payment of ₹{amount.toLocaleString()} ➔
+                  {isProcessing
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Opening Razorpay&hellip;</>
+                    : <>Pay ₹{amount.toLocaleString()} via Razorpay &rarr;</>}
                 </button>
               </div>
             </form>
@@ -259,7 +309,7 @@ export const DonorDonate: React.FC = () => {
             <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-2 text-[11px] text-slate-500">
               <span className="font-bold text-slate-900 dark:text-white block text-xs">Security Guarantee</span>
               <p className="flex items-center gap-1.5">
-                <Lock className="h-3 w-3 text-emerald-600" /> 256-Bit SSL Bank Grade Encryption
+                <Lock className="h-3 w-3 text-emerald-600" /> Razorpay PCI-DSS Compliant
               </p>
               <p className="flex items-center gap-1.5">
                 <CheckCircle className="h-3 w-3 text-blue-600" /> Instant PDF Tax Receipt in your Inbox

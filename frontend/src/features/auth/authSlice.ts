@@ -32,6 +32,9 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
       state.status = 'unauthenticated';
+      try {
+        localStorage.removeItem('resqpet_auth_user');
+      } catch { /* ignore */ }
     },
   },
 });

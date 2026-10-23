@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 140" fill="none">
+  <!-- Heart above heads -->
+  <path d="M78 28 C78 23 83 18 89 20 C95 22 96 29 90 35 L78 45 L66 35 C60 29 61 22 67 20 C73 18 78 23 78 28 Z" fill="#2d6a4f" stroke="#2d6a4f" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- Dog on the left -->
+  <g stroke="#1b4332" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Dog head & floppy ear -->
+    <path d="M42 35 C38 35 34 38 33 42 C30 40 26 42 25 46 C23 52 26 58 31 60 C32 66 36 71 42 71 C48 71 52 66 53 60 C55 58 58 54 57 48 C56 42 50 35 42 35 Z" fill="#ffffff"/>
+    <!-- Floppy ear details -->
+    <path d="M26 48 C24 55 27 63 32 64" />
+    <!-- Dog snout and smile -->
+    <circle cx="39" cy="50" r="1.5" fill="#1b4332"/>
+    <circle cx="47" cy="50" r="1.5" fill="#1b4332"/>
+    <ellipse cx="43" cy="54" rx="2.5" ry="1.8" fill="#1b4332"/>
+    <path d="M41 57 C42 59 44 59 45 57" />
+    <!-- Dog body & legs -->
+    <path d="M34 68 C30 75 27 88 27 96 L33 96 C34 90 35 84 37 78 C38 84 39 90 40 96 L46 96 C47 88 47 78 47 70" />
+    <path d="M46 72 C52 76 56 82 56 94 L50 94" />
+    <!-- Dog tail wagging -->
+    <path d="M27 90 C21 86 17 80 19 74" />
+  </g>
+
+  <!-- Cat on the right -->
+  <g stroke="#1b4332" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Cat head & pointed ears -->
+    <path d="M96 46 L91 35 L102 40 C106 39 112 39 116 40 L127 35 L122 46 C125 50 126 55 125 60 C123 68 116 73 109 73 C102 73 95 68 93 60 C92 55 93 50 96 46 Z" fill="#ffffff"/>
+    <!-- Cat eyes & nose -->
+    <ellipse cx="103" cy="53" rx="1.5" ry="2" fill="#1b4332"/>
+    <ellipse cx="115" cy="53" rx="1.5" ry="2" fill="#1b4332"/>
+    <polygon points="109,57 107,59 111,59" fill="#1b4332"/>
+    <path d="M107 60 C108 61.5 109 61.5 109 60 C109 61.5 110 61.5 111 60"/>
+    <!-- Cat whiskers -->
+    <path d="M99 56 L93 55 M99 58 L94 60"/>
+    <path d="M119 56 L125 55 M119 58 L124 60"/>
+    <!-- Cat body -->
+    <path d="M97 71 C95 78 94 86 94 95 L100 95 C101 89 103 83 105 77 C107 83 109 89 110 95 L116 95 C116 87 117 78 117 71"/>
+    <!-- Cat curved tail -->
+    <path d="M116 90 C124 90 128 84 127 76 C126 71 123 70 121 73"/>
+  </g>
+
+  <!-- Typography -->
+  <text x="80" y="116" font-family="'Caveat', 'Comic Sans MS', cursive, sans-serif" font-size="15" font-weight="700" fill="#2d6a4f" text-anchor="middle" font-style="italic">Better Homes</text>
+  <text x="80" y="132" font-family="'Caveat', 'Comic Sans MS', cursive, sans-serif" font-size="14" font-weight="700" fill="#2d6a4f" text-anchor="middle" font-style="italic">Happier Tails ♡</text>
+</svg>

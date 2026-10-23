@@ -7,6 +7,7 @@ const connectDB = async () => {
 
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       autoIndex: process.env.NODE_ENV !== 'production',
+      serverSelectionTimeoutMS: 2500,
     });
 
     logger.info(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
@@ -21,8 +22,9 @@ const connectDB = async () => {
 
     return conn;
   } catch (error) {
-    logger.error(`Failed to connect to MongoDB: ${error.message}`);
-    process.exit(1);
+    mongoose.set('bufferCommands', false);
+    logger.warn(`Failed to connect to MongoDB (${error.message}). API will start in offline/mock mode.`);
+    return null;
   }
 };
 

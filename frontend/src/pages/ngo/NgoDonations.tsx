@@ -10,8 +10,8 @@ const MOCK_ANALYTICS: DonationAnalytics = {
     { _id: 'campaign', totalAmount: 28000, count: 15 },
   ],
   monthly: [
-    { _id: { year: 2026, month: 8 }, totalAmount: 45000 },
-    { _id: { year: 2026, month: 7 }, totalAmount: 38000 },
+    { _id: { year: 2026, month: 8 }, totalAmount: 45000, count: 24 },
+    { _id: { year: 2026, month: 7 }, totalAmount: 38000, count: 18 },
   ],
 };
 

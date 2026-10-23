@@ -58,10 +58,13 @@ api.interceptors.response.use(
         pendingQueue = [];
         return api(originalRequest);
       } catch (refreshError) {
-        store.dispatch(logout());
-        // Only redirect to login if we are not already on an auth page
-        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
-          window.location.href = '/login';
+        const storedUser = localStorage.getItem('resqpet_auth_user');
+        if (!storedUser) {
+          store.dispatch(logout());
+          // Only redirect to login if we are not already on an auth page
+          if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(refreshError);
       } finally {

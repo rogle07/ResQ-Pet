@@ -32,7 +32,7 @@ export interface ApiError {
   errors?: { field: string; message: string }[];
 }
 
-export type PetSpecies = 'dog' | 'cat' | 'bird' | 'other';
+export type PetSpecies = 'dog' | 'cat' | 'bird' | 'rabbit' | 'cow' | 'other';
 export type PetStatus = 'safe' | 'lost' | 'found' | 'in_rescue' | 'in_foster' | 'adopted';
 
 export interface PetImage {
