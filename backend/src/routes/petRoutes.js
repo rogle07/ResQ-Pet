@@ -29,7 +29,7 @@ router.post(
   upload.array('images', 6),
   [
     body('name').trim().notEmpty().withMessage('Pet name is required'),
-    body('species').isIn(['dog', 'cat', 'bird', 'other']).withMessage('Valid species is required'),
+    body('species').isIn(['dog', 'cat', 'bird', 'rabbit', 'other']).withMessage('Valid species is required'),
   ],
   validate,
   createPet

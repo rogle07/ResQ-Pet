@@ -32,16 +32,12 @@ export const petApi = {
 
   create: (payload: CreatePetPayload) =>
     api
-      .post<{ success: true; pet: Pet }>('/pets', toFormData(payload), {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .post<{ success: true; pet: Pet }>('/pets', toFormData(payload))
       .then((r) => r.data.pet),
 
   update: (id: string, payload: Partial<CreatePetPayload>) =>
     api
-      .put<{ success: true; pet: Pet }>(`/pets/${id}`, toFormData(payload as CreatePetPayload), {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .put<{ success: true; pet: Pet }>(`/pets/${id}`, toFormData(payload as CreatePetPayload))
       .then((r) => r.data.pet),
 
   remove: (id: string) => api.delete(`/pets/${id}`).then((r) => r.data),

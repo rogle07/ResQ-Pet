@@ -26,6 +26,7 @@ import OwnerNgoShelter from '@/pages/owner/OwnerNgoShelter';
 import OwnerRescue from '@/pages/owner/OwnerRescue';
 import OwnerIoT from '@/pages/owner/OwnerIoT';
 import OwnerDonations from '@/pages/owner/OwnerDonations';
+import OwnerMessages from '@/pages/owner/OwnerMessages';
 import OwnerSettings from '@/pages/owner/OwnerSettings';
 import OwnerFoundPets from '@/pages/owner/OwnerFoundPets';
 
@@ -141,6 +142,7 @@ function App() {
               <Route path="iot" element={<OwnerIoT />} />
               <Route path="tracking" element={<OwnerTracking />} />
               <Route path="donations" element={<OwnerDonations />} />
+              <Route path="messages" element={<OwnerMessages />} />
               <Route path="settings" element={<OwnerSettings />} />
             </Route>
           </Route>

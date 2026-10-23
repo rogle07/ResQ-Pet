@@ -15,19 +15,28 @@ const createPet = asyncHandler(async (req, res) => {
     name,
     species,
     breed,
-    age,
-    gender,
+    age: age !== undefined && age !== '' ? Number(age) : undefined,
+    gender: gender || 'unknown',
     color,
-    weightKg,
+    weightKg: weightKg !== undefined && weightKg !== '' ? Number(weightKg) : undefined,
   });
 
   // Generate a QR code that encodes the pet's public profile URL
-  const profileUrl = `${process.env.CLIENT_URL}/pets/public/${pet.petId}`;
-  const qrDataUrl = await QRCode.toDataURL(profileUrl);
-  pet.qrCode = qrDataUrl;
+  try {
+    const clientBase = process.env.CLIENT_URL || 'https://res-q-pet-51cc.vercel.app';
+    const profileUrl = `${clientBase}/pets/public/${pet.petId}`;
+    const qrDataUrl = await QRCode.toDataURL(profileUrl);
+    pet.qrCode = qrDataUrl;
+  } catch (qrErr) {
+    console.error('QR code generation error:', qrErr.message);
+  }
 
   if (req.files?.length) {
-    pet.images = await uploadFilesToCloudinary(req.files, 'pets');
+    try {
+      pet.images = await uploadFilesToCloudinary(req.files, 'pets');
+    } catch (uploadErr) {
+      console.error('Image upload failed, continuing without images:', uploadErr.message);
+    }
   }
 
   await pet.save();
@@ -54,7 +63,9 @@ const getPetById = asyncHandler(async (req, res) => {
     throw new Error('Pet not found');
   }
 
-  const isOwner = pet.owner._id.toString() === req.user._id.toString();
+  const isOwner = pet.owner?._id
+    ? pet.owner._id.toString() === req.user._id.toString()
+    : pet.owner?.toString() === req.user._id.toString();
   const privilegedRoles = ['admin', 'rescue_team', 'ngo', 'veterinarian'];
 
   if (!isOwner && !privilegedRoles.includes(req.user.role)) {

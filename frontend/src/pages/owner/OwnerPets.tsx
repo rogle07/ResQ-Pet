@@ -14,10 +14,21 @@ const OwnerPets = () => {
     setLoading(true);
     try {
       const data = await petApi.list();
-      setPets(data);
+      setPets(data || []);
       setError('');
+      try {
+        localStorage.setItem('resqpet_owner_pets', JSON.stringify(data || []));
+      } catch { /* ignore */ }
     } catch {
-      setError('Could not load your pets. Please try again.');
+      try {
+        const cached = localStorage.getItem('resqpet_owner_pets');
+        if (cached) {
+          setPets(JSON.parse(cached));
+          setError('');
+          return;
+        }
+      } catch { /* ignore */ }
+      setError('Could not load your pets. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +72,16 @@ const OwnerPets = () => {
       <PetFormModal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={(pet) => setPets((prev) => [pet, ...prev])}
+        onSaved={(pet) => {
+          setPets((prev) => {
+            const next = [pet, ...prev];
+            try {
+              localStorage.setItem('resqpet_owner_pets', JSON.stringify(next));
+            } catch { /* ignore */ }
+            return next;
+          });
+          setError('');
+        }}
       />
     </div>
   );

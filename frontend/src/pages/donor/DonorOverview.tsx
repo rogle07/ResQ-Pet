@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { openRazorpayCheckout } from '@/utils/razorpay';
 import {
   Heart,
   FileText,
@@ -21,6 +22,7 @@ import {
   Calendar,
   DollarSign,
   PawPrint,
+  Loader2,
 } from 'lucide-react';
 import {
   SUPPORTED_TEAMS,
@@ -41,6 +43,7 @@ export const DonorOverview: React.FC = () => {
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   // Team Carousel scroll offset
   const [teamScrollIndex, setTeamScrollIndex] = useState(0);
@@ -64,18 +67,46 @@ export const DonorOverview: React.FC = () => {
 
   const handleDonateTrigger = (campaign?: DonorCampaign, team?: SupportedTeam) => {
     if (campaign) setSelectedCampaign(campaign);
+    else setSelectedCampaign(null);
     if (team) setSelectedTeam(team);
+    else setSelectedTeam(null);
     setShowCheckoutModal(true);
   };
 
-  const handleProcessPayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPaymentSuccess(true);
-    setTimeout(() => {
-      setPaymentSuccess(false);
-      setShowCheckoutModal(false);
-      setShowReceiptModal(true);
-    }, 1500);
+  const handleRazorpayPay = async () => {
+    setPaying(true);
+    const description = selectedCampaign
+      ? selectedCampaign.title
+      : selectedTeam
+      ? `Support ${selectedTeam.name}`
+      : 'Animal Rescue & Care Donation';
+    try {
+      await openRazorpayCheckout({
+        amount: quickAmount,
+        currency: 'INR',
+        name: 'ResQPet Foundation',
+        description,
+        image: '/logo.png',
+        theme: { color: '#7c3aed' },
+        modal: {
+          ondismiss: () => setPaying(false),
+        },
+      });
+      // Payment succeeded
+      setPaymentSuccess(true);
+      setTimeout(() => {
+        setPaymentSuccess(false);
+        setShowCheckoutModal(false);
+        setShowReceiptModal(true);
+        setPaying(false);
+      }, 1200);
+    } catch (err: unknown) {
+      // User cancelled or error
+      setPaying(false);
+      if (err instanceof Error && err.message !== 'Payment cancelled by user') {
+        console.error('Razorpay error:', err.message);
+      }
+    }
   };
 
   return (
@@ -623,56 +654,54 @@ export const DonorOverview: React.FC = () => {
                 <p className="text-slate-500">Generating your 80G Tax Exemption Receipt...</p>
               </div>
             ) : (
-              <form onSubmit={handleProcessPayment} className="space-y-3.5">
-                <div className="p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900 flex justify-between items-center">
-                  <span className="font-bold text-slate-700 dark:text-slate-300">Donation Amount:</span>
-                  <span className="font-display text-xl font-black text-purple-700 dark:text-purple-400">
+              <div className="space-y-4">
+                {/* Amount summary */}
+                <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900 flex justify-between items-center">
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Donation to</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                      {selectedCampaign ? selectedCampaign.title : selectedTeam ? selectedTeam.name : 'Animal Rescue & Care'}
+                    </span>
+                  </div>
+                  <span className="font-display text-2xl font-black text-purple-700 dark:text-purple-400">
                     ₹{quickAmount.toLocaleString()}
                   </span>
                 </div>
 
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Donor Name *</label>
-                  <input
-                    type="text"
-                    required
-                    defaultValue="Rahul Sharma"
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">PAN Card (Optional for 80G Tax Exemption)</label>
-                  <input
-                    type="text"
-                    defaultValue="ABCPS1234F"
-                    placeholder="e.g. ABCPS1234F"
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-mono uppercase"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Payment Method</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <label className="p-2.5 rounded-xl border border-purple-300 bg-purple-50 text-center font-bold text-purple-800 dark:bg-purple-950 cursor-pointer">
-                      <Smartphone className="h-4 w-4 mx-auto mb-0.5" /> UPI / QR
-                    </label>
-                    <label className="p-2.5 rounded-xl border border-slate-200 bg-white text-center font-bold text-slate-700 dark:bg-slate-800 cursor-pointer">
-                      <CreditCard className="h-4 w-4 mx-auto mb-0.5" /> Card
-                    </label>
-                    <label className="p-2.5 rounded-xl border border-slate-200 bg-white text-center font-bold text-slate-700 dark:bg-slate-800 cursor-pointer">
-                      <Building className="h-4 w-4 mx-auto mb-0.5" /> NetBanking
-                    </label>
+                {/* Payment methods info */}
+                <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                  <div className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                    <Smartphone className="h-4 w-4 mx-auto mb-1 text-purple-600" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">UPI / QR</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                    <CreditCard className="h-4 w-4 mx-auto mb-1 text-blue-600" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Card</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                    <Building className="h-4 w-4 mx-auto mb-1 text-emerald-600" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Net Banking</span>
                   </div>
                 </div>
 
+                {/* Razorpay CTA */}
                 <button
-                  type="submit"
-                  className="w-full rounded-2xl bg-purple-700 py-3 text-xs font-black text-white hover:bg-purple-800 shadow-md transition-all hover:scale-105"
+                  onClick={handleRazorpayPay}
+                  disabled={paying}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-purple-700 py-3 text-xs font-black text-white hover:bg-purple-800 shadow-md transition-all hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
                 >
-                  Confirm & Pay ₹{quickAmount.toLocaleString()}
+                  {paying ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Opening Razorpay&hellip;</>
+                  ) : (
+                    <><Lock className="h-4 w-4" /> Pay ₹{quickAmount.toLocaleString()} via Razorpay</>
+                  )}
                 </button>
-              </form>
+
+                <p className="text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
+                  <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                  Secured by Razorpay &middot; PCI-DSS Compliant
+                </p>
+              </div>
             )}
           </div>
         </div>

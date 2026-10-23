@@ -6,7 +6,7 @@ const petSchema = new mongoose.Schema(
     petId: { type: String, unique: true, default: () => `PET-${uuidv4().split('-')[0].toUpperCase()}` },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
-    species: { type: String, enum: ['dog', 'cat', 'bird', 'other'], required: true },
+    species: { type: String, enum: ['dog', 'cat', 'bird', 'rabbit', 'other'], required: true },
     breed: { type: String, trim: true },
     age: { type: Number, min: 0 },
     gender: { type: String, enum: ['male', 'female', 'unknown'], default: 'unknown' },
