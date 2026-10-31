@@ -14,12 +14,19 @@ const {
   setSafeZone,
   markPetLost,
   markPetSafe,
+  getPublicTag,
+  contactOwnerViaTag,
+  reportFoundViaTag,
+  generateResQTag,
 } = require('../controllers/petController');
 
 const router = express.Router();
 
 // Public QR-scan profile
 router.get('/public/:petId', getPublicPetProfile);
+router.get('/public-tag/:tagId', getPublicTag);
+router.post('/public-tag/:tagId/contact', contactOwnerViaTag);
+router.post('/public-tag/:tagId/report-found', reportFoundViaTag);
 
 router.use(protect);
 

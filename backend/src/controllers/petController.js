@@ -391,4 +391,8 @@ module.exports = {
   setSafeZone,
   markPetLost,
   markPetSafe,
+  getPublicTag,
+  contactOwnerViaTag,
+  reportFoundViaTag,
+  generateResQTag,
 };
