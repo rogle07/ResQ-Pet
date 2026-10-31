@@ -25,8 +25,17 @@ io.on('connection', (socket) => {
     socket.join(`owner:${userId}`);
   });
 
+  socket.on('join:user', (userId) => {
+    socket.join(`user:${userId}`);
+    logger.info(`Socket ${socket.id} joined user room: user:${userId}`);
+  });
+
   socket.on('join:rescueTeam', () => {
     socket.join('rescueTeamRoom');
+  });
+
+  socket.on('join:conversation', (convId) => {
+    socket.join(`conv:${convId}`);
   });
 
   socket.on('disconnect', () => {

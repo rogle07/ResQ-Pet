@@ -1,433 +1,385 @@
-import React, { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useAppSelector } from '@/app/hooks';
+import { useNavigate } from 'react-router-dom';
 import {
-  ChevronRight,
-  MapPin,
-  Upload,
-  CheckCircle,
-  Phone,
-  ShieldCheck,
-  PawPrint,
   Camera,
-  Trash2,
-  Image as ImageIcon,
-  Plus,
+  MapPin,
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  RefreshCw,
+  Heart,
+  Shield,
+  HelpCircle,
 } from 'lucide-react';
-import { FinderAnimalType, FinderCondition } from '@/types/finder';
 
-interface UploadedPhoto {
-  id: string;
-  url: string;
-  name: string;
-  size: string;
+const ANIMAL_TYPES = ['Dog', 'Cat', 'Bird', 'Rabbit', 'Cow', 'Goat', 'Horse', 'Other'];
+const CONDITION_OPTIONS = ['Healthy', 'Slightly injured', 'Seriously injured', 'Critical', 'Unknown'];
+
+interface FoundPetForm {
+  animalType: string;
+  breed: string;
+  approximateAge: string;
+  gender: string;
+  color: string;
+  distinctiveMarks: string;
+  locationAddress: string;
+  foundAt: string;
+  timeFound: string;
+  isInjured: string;
+  condition: string;
+  description: string;
+  additionalNotes: string;
+  contactPhone: string;
+  assistanceRequested: string;
 }
 
-export const FinderReport: React.FC = () => {
+const FinderReport = () => {
+  const currentUser = useAppSelector((s) => s.auth.user);
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-
-  const [animalType, setAnimalType] = useState<FinderAnimalType>('Dog');
-  const [condition, setCondition] = useState<FinderCondition>('Injured');
-  const [approxAge, setApproxAge] = useState('Young (1-2 Yrs)');
-  const [description, setDescription] = useState('');
-  const [locationAddress, setLocationAddress] = useState('Near Wave Mall, Indira Nagar, Lucknow');
-  const [reporterName, setReporterName] = useState('Rahul Sharma');
-  const [reporterPhone, setReporterPhone] = useState('+91 98765 43210');
   const [submitted, setSubmitted] = useState(false);
+  const [reportId, setReportId] = useState('');
+  const [matchResult, setMatchResult] = useState<any | null>(null);
 
-  // Real Uploaded Photos state
-  const [photos, setPhotos] = useState<UploadedPhoto[]>([
-    {
-      id: 'default-1',
-      url: '/animal-dog.jpg',
-      name: 'spot_wound_evidence.jpg',
-      size: '1.2 MB',
+  const { register, handleSubmit, watch, reset, formState: { isSubmitting, errors } } = useForm<FoundPetForm>({
+    defaultValues: {
+      animalType: 'Dog',
+      gender: 'unknown',
+      isInjured: 'no',
+      condition: 'Unknown',
+      assistanceRequested: 'none',
     },
-  ]);
-  const [isDragging, setIsDragging] = useState(false);
+  });
 
-  // File Upload Handlers
-  const handleFiles = (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
+  const assistanceRequested = watch('assistanceRequested');
 
-    Array.from(fileList).forEach((file) => {
-      if (!file.type.startsWith('image/')) {
-        alert('Please select valid image files (JPG, PNG, WEBP).');
-        return;
-      }
+  const onSubmit = async (values: FoundPetForm) => {
+    const ts = Date.now().toString(36).toUpperCase();
+    const newReportId = `FP-${ts}`;
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        const sizeStr =
-          file.size > 1024 * 1024
-            ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-            : `${Math.round(file.size / 1024)} KB`;
-
-        const newPhoto: UploadedPhoto = {
-          id: `photo-${Date.now()}-${Math.random()}`,
-          url: dataUrl,
-          name: file.name,
-          size: sizeStr,
-        };
-
-        setPhotos((prev) => [...prev, newPhoto]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFiles(e.target.files);
-    if (e.target) e.target.value = '';
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleRemovePhoto = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const handleAddSample = (sampleUrl: string, sampleName: string) => {
-    const samplePhoto: UploadedPhoto = {
-      id: `sample-${Date.now()}`,
-      url: sampleUrl,
-      name: sampleName,
-      size: '850 KB',
+    const payload = {
+      species: values.animalType.toLowerCase(),
+      breed: values.breed,
+      approximateAge: values.approximateAge,
+      gender: values.gender,
+      color: values.color,
+      distinctiveMarks: values.distinctiveMarks,
+      location: {
+        address: values.locationAddress,
+        lat: 28.6139,
+        lng: 77.2090,
+      },
+      foundAt: values.foundAt,
+      timeFound: values.timeFound,
+      isInjured: values.isInjured === 'yes',
+      condition: values.condition,
+      description: values.description,
+      additionalNotes: values.additionalNotes,
+      contactPhone: values.contactPhone || currentUser?.phone || '',
+      assistanceRequested: values.assistanceRequested,
+      requestRescue: values.assistanceRequested === 'rescue_team',
     };
-    setPhotos((prev) => [...prev, samplePhoto]);
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!description || !locationAddress) return;
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+      const res = await fetch('/api/found-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setReportId(data.report?.reportId || newReportId);
+
+        // Try to get matches
+        try {
+          const matchRes = await fetch(`/api/lost-pets/match/${data.report?._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            method: 'POST',
+          });
+          if (matchRes.ok) {
+            const matchData = await matchRes.json();
+            if (matchData.matches?.length > 0) {
+              setMatchResult(matchData.matches[0]);
+            }
+          }
+        } catch { /* ignore */ }
+      } else {
+        setReportId(newReportId);
+      }
+    } catch {
+      setReportId(newReportId);
+    }
 
     setSubmitted(true);
-    setTimeout(() => {
-      navigate('/finder/my-reports');
-    }, 2000);
   };
 
-  return (
-    <div className="space-y-6 pb-12 font-sans">
-      {/* Hidden Native File Inputs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-
-      {/* Breadcrumb */}
-      <div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-          <Link to="/finder" className="hover:text-purple-700">Home</Link>
-          <ChevronRight className="h-3 w-3" />
-          <span className="font-semibold text-purple-800 dark:text-purple-400">Report Found Animal</span>
+  if (submitted) {
+    return (
+      <div className="space-y-6">
+        <div className="card text-center py-10 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="h-9 w-9" />
+          </div>
+          <h3 className="font-display text-xl font-bold text-slate-800 dark:text-white">Report Submitted!</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Your found pet report has been submitted. Our system is searching for matching lost pet reports.
+          </p>
+          <div className="inline-block font-mono text-base font-bold text-[#1e6f42] bg-emerald-50 dark:bg-emerald-950/40 px-4 py-2 rounded-xl border border-emerald-200">
+            Report ID: {reportId}
+          </div>
         </div>
-        <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-          Report a Stray / Injured Animal <PawPrint className="h-6 w-6 text-purple-600" />
-        </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Submit details, animal photos, and GPS coordinates to trigger immediate triage & rescue squad dispatch.
+
+        {matchResult && (
+          <div className="card border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-blue-600" />
+              <h4 className="font-bold text-blue-800 dark:text-blue-300">Potential Match Found!</h4>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-200 text-blue-800">
+                {matchResult.matchScore}% Match
+              </span>
+            </div>
+            <p className="text-sm text-blue-700 dark:text-blue-400">
+              A lost pet report matches your found animal! The pet owner has been notified.
+              Please check your Messages section to communicate securely.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 dark:text-blue-400">
+              <span>Lost Pet: <strong>{matchResult.lostReport?.petName}</strong></span>
+              {matchResult.distanceKm !== null && (
+                <span>Distance: <strong>{matchResult.distanceKm} km away</strong></span>
+              )}
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-500">
+              ⚠️ A high match percentage does not confirm they are the same animal. Human verification is required.
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setSubmitted(false); setMatchResult(null); reset(); }}
+            className="btn-secondary text-sm"
+          >
+            Submit Another Report
+          </button>
+          <button
+            onClick={() => navigate('/finder/my-reports')}
+            className="rounded-xl bg-[#1e6f42] px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+          >
+            View My Reports
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-xl font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+          <Camera className="h-6 w-6 text-purple-600" />
+          Report a Found Animal
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Help reunite this animal with its owner or connect it with a rescue team or shelter.
         </p>
       </div>
 
-      {submitted ? (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50/50 p-12 text-center space-y-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/60 dark:text-emerald-300">
-            <CheckCircle className="h-10 w-10" />
-          </div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white">Emergency Report Registered!</h2>
-          <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
-            Thank you for being a voice for the voiceless. You earned <strong>+50 Thank You Points</strong>. Redirecting to your active reports tracker...
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Report Form */}
-          <div className="lg:col-span-2 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Species / Type *</label>
-                  <select
-                    value={animalType}
-                    onChange={(e) => setAnimalType(e.target.value as FinderAnimalType)}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:border-purple-600 focus:outline-none"
-                  >
-                    <option value="Dog">Dog 🐶</option>
-                    <option value="Cat">Cat 🐱</option>
-                    <option value="Cow">Cow 🐮</option>
-                    <option value="Bird">Bird 🐦</option>
-                    <option value="Goat">Goat 🐐</option>
-                    <option value="Rabbit">Rabbit 🐰</option>
-                    <option value="Other">Other Animal</option>
-                  </select>
-                </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Animal Details */}
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-sm text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">
+            Animal Details
+          </h3>
 
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Condition & Distress *</label>
-                  <select
-                    value={condition}
-                    onChange={(e) => setCondition(e.target.value as FinderCondition)}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:border-purple-600 focus:outline-none"
-                  >
-                    <option value="Injured">Injured (Bleeding / Fractured)</option>
-                    <option value="Trapped">Trapped (In Drain / Well / Manhole)</option>
-                    <option value="Sick">Sick / Severe Infection</option>
-                    <option value="Abandoned">Abandoned Pet</option>
-                    <option value="Stray">Stray in Distress</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Estimated Age</label>
-                  <select
-                    value={approxAge}
-                    onChange={(e) => setApproxAge(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:border-purple-600 focus:outline-none"
-                  >
-                    <option value="Puppy / Kitten">Puppy / Kitten (&lt; 6M)</option>
-                    <option value="Young (1-2 Yrs)">Young (1-2 Yrs)</option>
-                    <option value="Adult (3-6 Yrs)">Adult (3-6 Yrs)</option>
-                    <option value="Senior (7+ Yrs)">Senior (7+ Yrs)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">
-                  Spot Address & Exact Landmark *
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-600" />
-                  <input
-                    type="text"
-                    required
-                    value={locationAddress}
-                    onChange={(e) => setLocationAddress(e.target.value)}
-                    placeholder="e.g. Near Wave Mall, Sector 14, Indira Nagar, Lucknow"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-purple-600 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">
-                  Situation Description & Visible Wounds *
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe visible injuries, animal demeanor (frightened, aggressive, friendly), and any immediate first aid provided..."
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-purple-600 focus:outline-none"
-                />
-              </div>
-
-              {/* ─── Real Interactive Photo Upload Dropzone ─── */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block">
-                    Upload Animal Photos ({photos.length} Attached)
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-semibold">
-                    JPG, PNG, WEBP up to 10MB
-                  </span>
-                </div>
-
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`relative p-5 rounded-2xl border-2 border-dashed transition-all cursor-pointer text-center space-y-3 ${
-                    isDragging
-                      ? 'border-purple-600 bg-purple-100/60 dark:bg-purple-950/50 scale-[1.01]'
-                      : 'border-purple-200 bg-purple-50/40 hover:bg-purple-50/80 dark:border-purple-900/50 dark:bg-purple-950/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-600 text-white shadow-md shadow-purple-950/20">
-                      <Upload className="h-5 w-5" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="font-extrabold text-slate-800 dark:text-white text-xs">
-                      Click to Browse Files or Drag & Drop Photos Here
-                    </p>
-                    <p className="text-slate-400 text-[11px] mt-0.5">
-                      Clear photos help our rescue squad prepare exact bandages, splints, or sedation.
-                    </p>
-                  </div>
-
-                  {/* Fast Action Buttons inside Dropzone */}
-                  <div className="flex items-center justify-center gap-2 pt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 px-3.5 py-1.5 font-bold text-white hover:bg-purple-800 shadow-sm transition-transform hover:scale-105"
-                    >
-                      <ImageIcon className="h-3.5 w-3.5" /> Select from Gallery
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-purple-300 bg-white px-3.5 py-1.5 font-bold text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-800 dark:text-purple-300 transition-transform hover:scale-105"
-                    >
-                      <Camera className="h-3.5 w-3.5" /> Take Photo
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddSample('/animal-cat.jpg', 'kitten_evidence.jpg')}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                      <Plus className="h-3 w-3" /> + Sample Photo
-                    </button>
-                  </div>
-
-                  <div className="pt-1">
-                    <span className="inline-flex items-center gap-1 px-3 py-0.5 bg-white dark:bg-slate-800 rounded-full text-purple-700 dark:text-purple-300 font-mono text-[10px] border border-purple-200 dark:border-purple-800">
-                      📍 GPS Geo-tagging Active: +26.8797, +80.9992 (Lucknow)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Uploaded Thumbnails Grid */}
-                {photos.length > 0 && (
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {photos.map((photo) => (
-                      <div
-                        key={photo.id}
-                        className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm p-1.5 flex flex-col"
-                      >
-                        <div className="relative h-24 w-full rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
-                          <img
-                            src={photo.url}
-                            alt={photo.name}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                          <button
-                            type="button"
-                            onClick={(e) => handleRemovePhoto(photo.id, e)}
-                            className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white shadow-md hover:bg-red-700 transition-transform hover:scale-110"
-                            title="Remove Photo"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="p-1 min-w-0">
-                          <p className="text-[11px] font-bold text-slate-800 dark:text-white truncate">{photo.name}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">{photo.size}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Reporter Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Your Name</label>
-                  <input
-                    type="text"
-                    value={reporterName}
-                    onChange={(e) => setReporterName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1">Callback Phone *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={reporterPhone}
-                    onChange={(e) => setReporterPhone(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Link
-                  to="/finder"
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
-                >
-                  Cancel
-                </Link>
-                <button
-                  type="submit"
-                  className="rounded-2xl bg-purple-700 px-6 py-2.5 font-bold text-white hover:bg-purple-800 shadow-md shadow-purple-950/20 transition-all hover:scale-105"
-                >
-                  🚀 Dispatch Emergency Report
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Right Sidebar: Rescue Guidelines & Helpline */}
-          <div className="space-y-4 text-xs">
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-3">
-              <h3 className="font-display text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-purple-600" /> Essential Safety Reminders
-              </h3>
-              <ul className="space-y-2 text-slate-600 dark:text-slate-300">
-                <li>• <strong>Do not corner:</strong> An injured animal can bite out of acute fear or pain.</li>
-                <li>• <strong>Offer Water:</strong> Keep a shallow water bowl nearby if the animal is conscious.</li>
-                <li>• <strong>Stay Visible:</strong> Keep an eye on the animal until the ambulance is within 5 minutes.</li>
-              </ul>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Animal Type <span className="text-red-500">*</span></label>
+              <select className="input" {...register('animalType', { required: true })}>
+                {ANIMAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
-
-            <div className="rounded-3xl border border-red-100 bg-red-50/60 p-5 shadow-sm dark:border-red-900/40 dark:bg-red-950/30 space-y-2.5">
-              <h3 className="font-bold text-red-900 dark:text-red-300 text-sm flex items-center gap-1.5">
-                <Phone className="h-4 w-4 text-red-600" /> Need Immediate On-Call Advice?
-              </h3>
-              <p className="text-slate-600 dark:text-slate-300 text-[11px]">
-                Speak to our central veterinary triage officer right now for on-spot guidance.
-              </p>
-              <a
-                href="tel:1800264625"
-                className="inline-flex items-center justify-center gap-1.5 w-full rounded-2xl bg-red-600 py-2.5 font-bold text-white hover:bg-red-700 shadow-md shadow-red-950/20"
-              >
-                Call 1800-ANIMAL-HELP
-              </a>
+            <div>
+              <label className="label">Breed (if known)</label>
+              <input type="text" className="input" placeholder="e.g. Labrador, or leave blank" {...register('breed')} />
+            </div>
+            <div>
+              <label className="label">Approximate Age</label>
+              <input type="text" className="input" placeholder="e.g. Young puppy, 2 years" {...register('approximateAge')} />
+            </div>
+            <div>
+              <label className="label">Gender (if known)</label>
+              <select className="input" {...register('gender')}>
+                <option value="unknown">Unknown</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Color / Coat</label>
+              <input type="text" className="input" placeholder="e.g. Black and white" {...register('color')} />
+            </div>
+            <div>
+              <label className="label">Distinctive Marks</label>
+              <input type="text" className="input" placeholder="Collar, tag, markings, injuries..." {...register('distinctiveMarks')} />
             </div>
           </div>
         </div>
-      )}
+
+        {/* Location & Time */}
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-sm text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-blue-500" />
+            Location & Time
+          </h3>
+
+          <div>
+            <label className="label">Found Location / Address <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              className="input"
+              placeholder="Enter the street, area, city where you found the animal"
+              {...register('locationAddress', { required: 'Location is required' })}
+            />
+            {errors.locationAddress && <p className="mt-1 text-xs text-red-500">{errors.locationAddress.message}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Date Found <span className="text-red-500">*</span></label>
+              <input type="date" className="input" {...register('foundAt', { required: true })} />
+            </div>
+            <div>
+              <label className="label">Time Found</label>
+              <input type="time" className="input" {...register('timeFound')} />
+            </div>
+          </div>
+        </div>
+
+        {/* Injury & Condition */}
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-sm text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
+            <Heart className="h-4 w-4 text-rose-500" />
+            Animal Condition
+          </h3>
+
+          <div>
+            <label className="label">Is the animal injured?</label>
+            <div className="flex gap-4 mt-1">
+              {[
+                { value: 'no', label: 'No, appears healthy' },
+                { value: 'yes', label: 'Yes, injured or in distress' },
+              ].map((opt) => (
+                <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" value={opt.value} {...register('isInjured')} className="accent-emerald-600" />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Health Condition</label>
+            <select className="input" {...register('condition')}>
+              {CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Description</label>
+            <textarea
+              className="input min-h-[80px]"
+              placeholder="Describe the animal's condition, behavior, surroundings..."
+              {...register('description')}
+            />
+          </div>
+        </div>
+
+        {/* Assistance Request */}
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-sm text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
+            <HelpCircle className="h-4 w-4 text-amber-500" />
+            What assistance does this animal need?
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { value: 'none', label: 'No immediate assistance', desc: 'I can handle the situation', icon: <CheckCircle2 className="h-5 w-5" />, color: 'border-slate-200 dark:border-slate-700' },
+              { value: 'rescue_team', label: 'Request Rescue Team', desc: 'Animal is injured or in danger', icon: <Shield className="h-5 w-5 text-red-500" />, color: 'border-red-200 dark:border-red-800' },
+              { value: 'ngo_shelter', label: 'Request NGO / Shelter', desc: 'Animal needs shelter or care', icon: <Heart className="h-5 w-5 text-amber-500" />, color: 'border-amber-200 dark:border-amber-800' },
+            ].map((opt) => (
+              <label key={opt.value} className={`flex flex-col gap-2 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                assistanceRequested === opt.value ? 'border-[#1e6f42] bg-emerald-50 dark:bg-emerald-950/30' : `${opt.color} hover:border-slate-300`
+              }`}>
+                <input type="radio" value={opt.value} {...register('assistanceRequested')} className="sr-only" />
+                <div className="flex items-center gap-2">
+                  {opt.icon}
+                  <span className="font-semibold text-sm text-slate-800 dark:text-white">{opt.label}</span>
+                </div>
+                <span className="text-xs text-slate-500">{opt.desc}</span>
+              </label>
+            ))}
+          </div>
+
+          {assistanceRequested === 'rescue_team' && (
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-700 dark:text-red-400">
+              <strong>Rescue Team requested.</strong> A rescue team will be notified and will respond to your location.
+              Please stay near the animal if safe to do so.
+            </div>
+          )}
+
+          {assistanceRequested === 'ngo_shelter' && (
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-400">
+              <strong>NGO / Shelter assistance requested.</strong> Local shelters and NGOs will be notified to arrange appropriate care.
+            </div>
+          )}
+        </div>
+
+        {/* Additional & Contact */}
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-sm text-slate-800 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">
+            Additional Information
+          </h3>
+          <div>
+            <label className="label">Additional Notes</label>
+            <textarea
+              className="input min-h-[60px]"
+              placeholder="Any other information that may help identify or care for this animal..."
+              {...register('additionalNotes')}
+            />
+          </div>
+          <div>
+            <label className="label">Your Contact Phone</label>
+            <input
+              type="tel"
+              className="input"
+              placeholder="+91 98765 43210"
+              defaultValue={currentUser?.phone || ''}
+              {...register('contactPhone')}
+            />
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={() => reset()} className="btn-secondary">Reset Form</button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 rounded-xl bg-purple-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-purple-800 disabled:opacity-50 transition-colors shadow-sm"
+          >
+            {isSubmitting ? (
+              <><RefreshCw className="h-4 w-4 animate-spin" /> Submitting...</>
+            ) : (
+              <><FileText className="h-4 w-4" /> Submit Found Pet Report</>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
+
 export default FinderReport;

@@ -36,6 +36,7 @@ router.post(
 );
 
 router.get('/', authorize('owner', 'admin'), getMyPets);
+router.post('/:id/generate-tag', authorize('owner', 'admin'), generateResQTag);
 router.get('/:id', getPetById);
 router.put('/:id', upload.array('images', 6), updatePet);
 router.delete('/:id', deletePet);

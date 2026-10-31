@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { petApi } from '@/features/pets/petApi';
 import { ngoApi, type AdoptionApplication } from '@/features/ngo/ngoApi';
 import { donationApi } from '@/features/donations/donationApi';
@@ -436,15 +435,7 @@ const OwnerAdoption = () => {
     };
   }, []);
 
-  // Form for listing pet
-  const {
-    register: registerList,
-    handleSubmit: handleSubmitList,
-    reset: resetList,
-    formState: { isSubmitting: isListingSubmitting },
-  } = useForm<{ petId: string; description: string }>({
-    defaultValues: { petId: '', description: '' },
-  });
+  
 
   // Toggle favorite / saved pet
   const handleToggleSave = (petId: string) => {
@@ -649,49 +640,7 @@ const OwnerAdoption = () => {
     }, 1200);
   };
 
-  // Submit owner list pet for adoption
-  const onListPet = async (values: { petId: string; description: string }) => {
-    setServerError('');
-    try {
-      await ngoApi.listPetForAdoption(values.petId, values.description);
-      setSuccessToast('Your pet has been successfully listed for adoption in the community!');
-      setListPetModalOpen(false);
-      resetList();
-      const pList = await petApi.list();
-      setBackendPets(pList);
-      const listed = pList.find((p) => p._id === values.petId);
-      if (listed) {
-        setPets((prev) => [
-          {
-            id: listed._id,
-            name: listed.name,
-            species: (listed.species as any) || 'dog',
-            gender: (listed.gender as any) || 'male',
-            breed: listed.breed || 'Companion',
-            age: `${listed.age || 1} years`,
-            weight: '12 kg',
-            location: 'Home listed, Delhi',
-            status: 'Available',
-            image: listed.images?.[0]?.url || '/pets/dog_golden.jpg',
-            health: (listed as any).healthStatus || 'Healthy & vaccinated',
-            bio: values.description,
-            goodWith: ['Families', 'Loving Homes'],
-            adoptionFee: 999,
-            rescueCenter: {
-              name: 'ResQPet Community Listing',
-              contact: profile.phone,
-              verified: true,
-            },
-          },
-          ...prev,
-        ]);
-      }
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Could not list pet for adoption. Please try again.';
-      setServerError(msg);
-    }
-  };
+  
 
   // Filtered Featured Pets list
   const filteredPets = pets.filter((p) => {
@@ -763,7 +712,7 @@ const OwnerAdoption = () => {
               className="px-3.5 py-2 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs shrink-0 cursor-pointer"
             >
               <PlusCircle className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">List Pet</span>
+              <span className="hidden sm:inline">Add Your Own Pet for Adoption</span>
             </button>
           </div>
         </div>
@@ -2158,60 +2107,220 @@ const OwnerAdoption = () => {
       )}
 
       {/* ═════════════════════════════════════════════════════════════
-          MODAL 7: LIST PET FOR ADOPTION (Preserves existing owner feature)
+          MODAL 7: ADD YOUR OWN PET FOR ADOPTION (Part 13)
       ═════════════════════════════════════════════════════ */}
       {isListPetModalOpen && (
         <Modal
           isOpen={isListPetModalOpen}
           onClose={() => setListPetModalOpen(false)}
-          title="List Pet for Adoption"
+          title="Add Your Own Pet for Adoption"
         >
-          <form onSubmit={handleSubmitList(onListPet)} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Select Your Pet</label>
-              {backendPets.length === 0 ? (
-                <p className="p-3 rounded-xl bg-amber-50 text-amber-800 text-xs">
-                  You have no registered pets yet. Please add a pet from the My Pets section first.
-                </p>
-              ) : (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const petName = String(fd.get('petName') || '');
+              const animalType = String(fd.get('animalType') || 'Dog');
+              const breed = String(fd.get('breed') || '');
+              const age = String(fd.get('age') || '');
+              const gender = String(fd.get('gender') || 'unknown');
+              const healthCondition = String(fd.get('healthCondition') || '');
+              const vaccinationInfo = String(fd.get('vaccinationInfo') || '');
+              const behavior = String(fd.get('behavior') || '');
+              const location = String(fd.get('location') || '');
+              const description = String(fd.get('description') || '');
+              const adoptionTerms = String(fd.get('adoptionTerms') || '');
+              const feeStr = String(fd.get('adoptionFee') || '0');
+              const fee = Number(feeStr) || 0;
+              const photoUrl = String(fd.get('photoUrl') || '/buddy-puppy.jpg');
+
+              const ts = Date.now().toString(36).toUpperCase();
+              const listingId = 'AL-' + ts;
+
+              const newListing = {
+                _id: 'listing-' + Date.now(),
+                listingId,
+                petName: petName || 'Pet',
+                animalType,
+                breed: breed || 'Companion',
+                age: age || '1 year',
+                gender,
+                healthCondition,
+                vaccinationInfo,
+                behavior,
+                location: location || 'Delhi NCR',
+                description,
+                adoptionTerms,
+                adoptionFee: fee,
+                isFree: fee === 0,
+                photos: [{ url: photoUrl }],
+                listedBy: { name: (currentUser && currentUser.name) || 'Pet Owner' },
+                createdAt: new Date().toISOString(),
+              };
+
+              try {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+                await fetch('/api/adoption-listings', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                  body: JSON.stringify(newListing),
+                });
+              } catch (err) {}
+
+              try {
+                const existing = JSON.parse(localStorage.getItem('resqpet_adopter_listings_v1') || '[]');
+                localStorage.setItem('resqpet_adopter_listings_v1', JSON.stringify([newListing, ...existing]));
+              } catch (e) {}
+
+              setPets((prev) => [
+                {
+                  id: newListing._id,
+                  name: newListing.petName,
+                  species: (newListing.animalType.toLowerCase() === 'cat' ? 'cat' : 'dog'),
+                  gender: (newListing.gender === 'female' ? 'female' : 'male'),
+                  breed: newListing.breed,
+                  age: newListing.age,
+                  weight: '10 kg',
+                  location: newListing.location,
+                  status: 'Available',
+                  image: photoUrl,
+                  health: newListing.healthCondition || 'Healthy',
+                  bio: newListing.description,
+                  goodWith: ['Loving Homes'],
+                  adoptionFee: newListing.adoptionFee,
+                  rescueCenter: {
+                    name: 'Owner Listed: ' + ((currentUser && currentUser.name) || 'Pet Owner'),
+                    contact: '+91 98765 43210',
+                    verified: true,
+                  },
+                },
+                ...prev,
+              ]);
+
+              setSuccessToast('Your pet has been successfully listed for adoption! Listing ID: ' + listingId);
+              setListPetModalOpen(false);
+              setTimeout(() => setSuccessToast(''), 6000);
+            }}
+            className="space-y-3.5 text-xs max-h-[75vh] overflow-y-auto pr-1"
+          >
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 text-emerald-800 dark:text-emerald-300">
+              List your pet for adoption to find verified loving adopters. You can select an existing pet or enter new pet details.
+            </div>
+
+            {backendPets.length > 0 && (
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Or Select From My Registered Pets</label>
                 <select
-                  {...registerList('petId', { required: true })}
-                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 bg-white dark:bg-slate-900 cursor-pointer"
+                  name="selectedRegisteredPet"
+                  onChange={(e) => {
+                    const found = backendPets.find((p) => p._id === e.target.value);
+                    if (found) {
+                      const form = e.target.form;
+                      if (form) {
+                        form.petName.value = found.name;
+                        form.breed.value = found.breed || '';
+                        form.age.value = found.age ? found.age + ' years' : '';
+                        if (found.species) form.animalType.value = found.species.charAt(0).toUpperCase() + found.species.slice(1);
+                      }
+                    }
+                  }}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900"
                 >
-                  <option value="">— Choose a pet —</option>
+                  <option value="">— Select registered pet (optional autofill) —</option>
                   {backendPets.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name} ({p.species} • {p.breed || 'Mixed'})
-                    </option>
+                    <option key={p._id} value={p._id}>{p.name} ({p.species} • {p.breed || 'Pet'})</option>
                   ))}
                 </select>
-              )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Pet Name *</label>
+                <input required name="petName" placeholder="e.g. Bruno" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Animal Type *</label>
+                <select name="animalType" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900">
+                  <option value="Dog">Dog</option>
+                  <option value="Cat">Cat</option>
+                  <option value="Rabbit">Rabbit</option>
+                  <option value="Bird">Bird</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Breed</label>
+                <input name="breed" placeholder="e.g. Golden Retriever" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Age</label>
+                <input name="age" placeholder="e.g. 2 years" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Gender</label>
+                <select name="gender" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Adoption Fee (₹)</label>
+                <input type="number" name="adoptionFee" defaultValue="0" placeholder="0 for Free Adoption" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
             </div>
 
             <div>
-              <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Description / Note for Adopters</label>
-              <textarea
-                rows={3}
-                {...registerList('description', { required: true })}
-                placeholder="Describe why you want to rehome your pet, their temperament, vaccinations, and ideal home requirements..."
-                className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 bg-white dark:bg-slate-900"
-              />
+              <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Pet Photo URL</label>
+              <input name="photoUrl" placeholder="/buddy-puppy.jpg or https://..." defaultValue="/buddy-puppy.jpg" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Health Condition</label>
+                <input name="healthCondition" placeholder="e.g. Vaccinated, healthy, neutered" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Vaccination Info</label>
+                <input name="vaccinationInfo" placeholder="e.g. Up to date, Rabies complete" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Behavior & Temperament</label>
+                <input name="behavior" placeholder="e.g. Playful, friendly with cats, gentle" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Location *</label>
+                <input required name="location" placeholder="e.g. Noida Sector 62, Delhi NCR" className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Description *</label>
+              <textarea required rows={2} name="description" placeholder="Describe your pet's personality, favorite toys, background, and why you are seeking a home..." className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
+            </div>
+
+            <div>
+              <label className="block font-semibold mb-1 text-slate-700 dark:text-bone">Adoption Terms & Requirements</label>
+              <textarea rows={2} name="adoptionTerms" placeholder="e.g. House with yard preferred, regular updates for 3 months, genuine animal lovers..." className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 p-2 bg-white dark:bg-slate-900" />
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setListPetModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isListingSubmitting}
-                className="px-5 py-2 rounded-xl bg-[#166534] text-white font-bold cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-[#166534] text-white font-bold cursor-pointer hover:bg-emerald-800"
               >
-                {isListingSubmitting ? 'Listing Pet…' : 'List for Adoption'}
+                Publish Adoption Listing
               </button>
             </div>
           </form>

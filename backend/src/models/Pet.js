@@ -14,6 +14,14 @@ const petSchema = new mongoose.Schema(
     weightKg: { type: Number, min: 0 },
     images: [{ url: String, publicId: String }],
     qrCode: { type: String },
+    tagId: { type: String, unique: true, sparse: true, index: true },
+    resqTag: {
+      isActive: { type: Boolean, default: false },
+      showPhone: { type: Boolean, default: false },
+      showEmail: { type: Boolean, default: false },
+      generatedAt: { type: Date },
+    },
+    distinctiveMarks: { type: String, trim: true },
 
     vaccinations: [
       {

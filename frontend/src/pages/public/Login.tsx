@@ -17,8 +17,8 @@ interface LoginForm {
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'owner',              label: 'Pet Owner' },
+  { value: 'lost_pet',           label: 'Lost Pet Reporter' },
   { value: 'finder',             label: 'Finder' },
-  { value: 'found_pet_reporter', label: 'Found Pet Reporter' },
   { value: 'rescue_team',        label: 'Rescuer / Rescue Team' },
   { value: 'ngo',                label: 'NGO / Shelter' },
   { value: 'adopter',            label: 'Adopter' },
@@ -32,6 +32,25 @@ const features = [
   { icon: <Bell className="h-5 w-5 text-moss-600" />, title: 'Real-time Alerts', desc: 'Get instant updates for lost & found pets.' },
   { icon: <Heart className="h-5 w-5 text-moss-600" />, title: 'Support & Care', desc: 'Help pets through adoption, foster care & donations.' },
 ];
+
+
+const getSafeRedirect = (userRole: UserRole, targetPath?: string) => {
+  const defaultHome = roleHomePath(userRole);
+  if (!targetPath) return defaultHome;
+  if (
+    targetPath.includes('unauthorized') ||
+    targetPath.includes('login') ||
+    targetPath.includes('register') ||
+    targetPath === '/'
+  ) {
+    return defaultHome;
+  }
+  // Only allow redirection if the target path actually belongs to this role's area
+  if (targetPath.startsWith(defaultHome)) {
+    return targetPath;
+  }
+  return defaultHome;
+};
 
 const Login = () => {
   const {
@@ -53,10 +72,8 @@ const Login = () => {
     try {
       localStorage.setItem('resqpet_auth_user', JSON.stringify(user));
     } catch { /* ignore */ }
-    const redirectTo =
-      (location.state as { from?: Location })?.from?.pathname ||
-      (user.role === 'owner' ? '/owner/foster' : roleHomePath(user.role));
-    navigate(redirectTo, { replace: true });
+    const fromPath = (location.state as { from?: Location })?.from?.pathname;
+    navigate(getSafeRedirect(user.role, fromPath), { replace: true });
   };
 
   const onSubmit = async (values: LoginForm) => {
@@ -67,8 +84,8 @@ const Login = () => {
       try {
         localStorage.setItem('resqpet_auth_user', JSON.stringify(data.user));
       } catch { /* ignore */ }
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname || roleHomePath(data.user.role);
-      navigate(redirectTo, { replace: true });
+      const fromPath = (location.state as { from?: Location })?.from?.pathname;
+      navigate(getSafeRedirect(data.user.role, fromPath), { replace: true });
     } catch {
       // Resilient login fallback: Accept any email entered by the user!
       const emailParts = values.email.split('@')[0].replace(/[._-]/g, ' ');

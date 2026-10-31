@@ -1,7 +1,7 @@
 export type UserRole =
   | 'owner'
+  | 'lost_pet'
   | 'finder'
-  | 'found_pet_reporter'
   | 'rescue_team'
   | 'ngo'
   | 'adopter'
@@ -72,6 +72,14 @@ export interface Pet {
   weightKg?: number;
   images: PetImage[];
   qrCode?: string;
+  tagId?: string;
+  resqTag?: {
+    isActive: boolean;
+    showPhone?: boolean;
+    showEmail?: boolean;
+    generatedAt?: string;
+  };
+  distinctiveMarks?: string;
   vaccinations: Vaccination[];
   medicalConditions: MedicalCondition[];
   collar: {

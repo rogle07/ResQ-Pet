@@ -32,8 +32,8 @@ interface RegisterForm {
 
 const ROLE_OPTIONS: { value: UserRole; label: string; icon: JSX.Element; badge?: string }[] = [
   { value: 'owner',              label: 'Pet Owner',           icon: <PawPrint className="h-5 w-5 sm:h-6 sm:w-6" /> },
+  { value: 'lost_pet',           label: 'Lost Pet Reporter',    icon: <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />, badge: 'Missing Pet' },
   { value: 'finder',             label: 'Finder',              icon: <Search className="h-5 w-5 sm:h-6 sm:w-6" /> },
-  { value: 'found_pet_reporter', label: 'Found Pet Reporter',  icon: <MapPin className="h-5 w-5 sm:h-6 sm:w-6" /> },
   { value: 'rescue_team',        label: 'Rescuer / Rescue Team', icon: <Shield className="h-5 w-5 sm:h-6 sm:w-6" /> },
   { value: 'ngo',                label: 'NGO / Shelter',        icon: <Users className="h-5 w-5 sm:h-6 sm:w-6" /> },
   { value: 'adopter',            label: 'Adopter',              icon: <UserCheck className="h-5 w-5 sm:h-6 sm:w-6" /> },

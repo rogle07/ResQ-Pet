@@ -21,6 +21,19 @@ const foundReportSchema = new mongoose.Schema(
     currentPetLocation: String,
     condition: String,
     additionalNotes: String,
+    reportId: { type: String, unique: true, sparse: true },
+    color: { type: String, trim: true },
+    distinctiveMarks: { type: String, trim: true },
+    bodySize: { type: String, trim: true },
+    collarDetails: { type: String, trim: true },
+    isInjured: { type: Boolean, default: false },
+    assistanceRequested: {
+      type: String,
+      enum: ['none', 'rescue_team', 'ngo_shelter'],
+      default: 'none',
+    },
+    matchedLostReport: { type: mongoose.Schema.Types.ObjectId, ref: 'LostPetReport', default: null },
+    matchScore: { type: Number, default: 0 },
     status: {
       type: String,
       enum: [
@@ -42,5 +55,13 @@ const foundReportSchema = new mongoose.Schema(
 );
 
 foundReportSchema.index({ 'location.lat': 1, 'location.lng': 1 });
+
+foundReportSchema.pre('save', function (next) {
+  if (!this.reportId) {
+    const ts = Date.now().toString(36).toUpperCase();
+    this.reportId = `FP-${ts}`;
+  }
+  next();
+});
 
 module.exports = mongoose.model('FoundReport', foundReportSchema);

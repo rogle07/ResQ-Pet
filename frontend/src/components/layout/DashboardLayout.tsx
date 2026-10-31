@@ -39,6 +39,7 @@ import {
   Activity,
   PlusCircle,
   Award,
+  Cpu,
 } from 'lucide-react';
 
 interface NavItem {
@@ -53,10 +54,10 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
   owner: [
     { to: '/owner', label: 'Dashboard', icon: <Home className="h-5 w-5" />, end: true },
     { to: '/owner/pets', label: 'My Pets', icon: <PawPrint className="h-5 w-5" /> },
+    { to: '/owner/iot', label: 'Wearable IoT', icon: <Cpu className="h-5 w-5" /> },
     { to: '/owner/foster', label: 'Foster Care', icon: <Home className="h-5 w-5" /> },
     { to: '/owner/adoption', label: 'Adoption', icon: <Heart className="h-5 w-5" /> },
-    { to: '/owner/messages', label: 'Messages', icon: <MessageSquare className="h-5 w-5" />, badge: '2' },
-    { to: '/owner/foster#my-requests', label: 'My Requests', icon: <FileText className="h-5 w-5" /> },
+    { to: '/owner/messages', label: 'Messages', icon: <MessageSquare className="h-5 w-5" /> },
     { to: '/owner/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
   ],
   rescue_team: [
@@ -89,7 +90,6 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { to: '/foster-home/requests', label: 'Foster Requests', icon: <AlertTriangle className="h-4 w-4" />, badge: '3' },
     { to: '/foster-home/adoption', label: 'Adoption Desk', icon: <Heart className="h-4 w-4" /> },
     { to: '/foster-home/statistics', label: 'Care Statistics', icon: <TrendingUp className="h-4 w-4" /> },
-    { to: '/foster-home/donations', label: 'Donations', icon: <DollarSign className="h-4 w-4" /> },
     { to: '/foster-home/profile', label: 'Foster Profile', icon: <Users className="h-4 w-4" /> },
     { to: '/foster-home/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" />, badge: '2' },
     { to: '/foster-home/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
@@ -113,16 +113,18 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { to: '/finder', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
     { to: '/finder/report', label: 'Report Found Animal', icon: <PlusCircle className="h-4 w-4" /> },
     { to: '/finder/my-reports', label: 'My Reports', icon: <FileText className="h-4 w-4" />, badge: '12' },
+    { to: '/finder/matches', label: 'Possible Matches', icon: <Search className="h-4 w-4" /> },
     { to: '/finder/awareness', label: 'Awareness / Posts', icon: <Megaphone className="h-4 w-4" /> },
     { to: '/finder/messages', label: 'Messages', icon: <MessageSquare className="h-4 w-4" />, badge: '3' },
     { to: '/finder/resources', label: 'Resources', icon: <BookOpen className="h-4 w-4" /> },
     { to: '/finder/how-to-help', label: 'How to Help', icon: <Heart className="h-4 w-4" /> },
     { to: '/finder/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
   ],
-  found_pet_reporter: [
-    { to: '/found-pet-reporter', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
-    { to: '/found-pet-reporter/my-reports', label: 'My Found Reports', icon: <FileText className="h-4 w-4" /> },
-    { to: '/found-pet-reporter/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
+  adopter: [
+    { to: '/adopter', label: 'Adoption Desk', icon: <Heart className="h-4 w-4" />, end: true },
+    { to: '/adopter/my-requests', label: 'My Applications', icon: <FileText className="h-4 w-4" /> },
+    { to: '/adopter/messages', label: 'Messages', icon: <MessageSquare className="h-4 w-4" /> },
+    { to: '/adopter/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
   ],
   donor: [
     { to: '/donor', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
@@ -134,6 +136,14 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { to: '/donor/rewards', label: 'Rewards & Badges', icon: <Award className="h-4 w-4" /> },
     { to: '/donor/messages', label: 'Messages', icon: <MessageSquare className="h-4 w-4" />, badge: '3' },
     { to: '/donor/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
+  ],
+  lost_pet: [
+    { to: '/lost-pet', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" />, end: true },
+    { to: '/lost-pet/report', label: 'Report Missing Pet', icon: <AlertTriangle className="h-4 w-4" /> },
+    { to: '/lost-pet/my-reports', label: 'My Lost Reports', icon: <FileText className="h-4 w-4" /> },
+    { to: '/lost-pet/matches', label: 'Matching Results', icon: <Search className="h-4 w-4" /> },
+    { to: '/lost-pet/messages', label: 'Messages', icon: <MessageSquare className="h-4 w-4" /> },
+    { to: '/lost-pet/settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
   ],
   admin: [
     { to: '/admin', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, end: true },
@@ -207,6 +217,8 @@ const DashboardLayout = () => {
     if (isRescueTeam) return 'Rescue Operations';
     if (isFosterHome) return 'Foster Care Portal';
     if (user?.role === 'owner') return 'Pet Owner Portal';
+    if (user?.role === 'lost_pet') return 'Lost Pet Portal';
+    if (user?.role === 'adopter') return 'Adopter Portal';
     if (user?.role === 'ngo') return 'Animal Care NGO';
     if (user?.role === 'veterinarian') return 'Veterinary Clinic';
     if (isFinder) return 'Finder Portal';

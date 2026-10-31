@@ -27,7 +27,7 @@ const register = asyncHandler(async (req, res) => {
     throw new Error('An account with this email already exists');
   }
 
-  const allowedSelfRegisterRoles = ['owner', 'finder', 'found_pet_reporter', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
+  const allowedSelfRegisterRoles = ['owner', 'lost_pet', 'finder', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
   const finalRole = allowedSelfRegisterRoles.includes(role) ? role : 'owner';
 
   const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -185,7 +185,7 @@ const googleLogin = asyncHandler(async (req, res) => {
     throw new Error('Google authentication requires a valid email or account');
   }
 
-  const allowedRoles = ['owner', 'finder', 'found_pet_reporter', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
+  const allowedRoles = ['owner', 'lost_pet', 'finder', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
   const finalRole = allowedRoles.includes(role) ? role : 'owner';
 
   let user = null;
@@ -289,7 +289,7 @@ const facebookLogin = asyncHandler(async (req, res) => {
   let user = await User.findOne({ $or: [{ facebookId: fbUser.id }, { email }] });
 
   if (!user) {
-    const allowedRoles = ['owner', 'finder', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
+    const allowedRoles = ['owner', 'lost_pet', 'finder', 'rescue_team', 'ngo', 'adopter', 'foster_home', 'donor'];
     const finalRole = allowedRoles.includes(role) ? role : 'owner';
 
     user = await User.create({

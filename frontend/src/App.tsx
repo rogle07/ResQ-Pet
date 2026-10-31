@@ -88,9 +88,16 @@ import FinderResources from '@/pages/finder/FinderResources';
 import FinderHowToHelp from '@/pages/finder/FinderHowToHelp';
 import FinderSettings from '@/pages/finder/FinderSettings';
 
-import FoundPetReporterOverview from '@/pages/foundPetReporter/FoundPetReporterOverview';
-import FoundPetReporterMyReports from '@/pages/foundPetReporter/FoundPetReporterMyReports';
-import FoundPetReporterSettings from '@/pages/foundPetReporter/FoundPetReporterSettings';
+import OwnerLostPet from '@/pages/owner/OwnerLostPet';
+import LostPetOverview from '@/pages/lostPet/LostPetOverview';
+import LostPetReportMissing from '@/pages/lostPet/LostPetReportMissing';
+import LostPetMyReports from '@/pages/lostPet/LostPetMyReports';
+import LostPetMatches from '@/pages/lostPet/LostPetMatches';
+import LostPetMessages from '@/pages/lostPet/LostPetMessages';
+import LostPetSettings from '@/pages/lostPet/LostPetSettings';
+import FinderMatches from '@/pages/finder/FinderMatches';
+import PublicPetTag from '@/pages/public/PublicPetTag';
+import AdopterOverview from '@/pages/adopter/AdopterOverview';
 
 import DonorOverview from '@/pages/donor/DonorOverview';
 import DonorDonate from '@/pages/donor/DonorDonate';
@@ -140,6 +147,7 @@ function App() {
               <Route path="rescue" element={<OwnerRescue />} />
               <Route path="found-pets" element={<OwnerFoundPets />} />
               <Route path="iot" element={<OwnerIoT />} />
+              <Route path="lost-pet" element={<OwnerLostPet />} />
               <Route path="tracking" element={<OwnerTracking />} />
               <Route path="donations" element={<OwnerDonations />} />
               <Route path="messages" element={<OwnerMessages />} />
@@ -157,6 +165,7 @@ function App() {
               <Route path="tasks" element={<TasksAssignments />} />
               <Route path="resources" element={<ResourcesEquipment />} />
               <Route path="analytics" element={<ReportsAnalytics />} />
+              <Route path="reports" element={<ReportsAnalytics />} />
             </Route>
           </Route>
 
@@ -226,16 +235,18 @@ function App() {
               <Route path="messages" element={<FinderMessages />} />
               <Route path="resources" element={<FinderResources />} />
               <Route path="how-to-help" element={<FinderHowToHelp />} />
+              <Route path="matches" element={<FinderMatches />} />
               <Route path="settings" element={<FinderSettings />} />
             </Route>
           </Route>
 
-          {/* Found Pet Reporter */}
-          <Route element={<ProtectedRoute allowedRoles={['found_pet_reporter', 'admin']} />}>
-            <Route path="/found-pet-reporter" element={<DashboardLayout />}>
-              <Route index element={<FoundPetReporterOverview />} />
-              <Route path="my-reports" element={<FoundPetReporterMyReports />} />
-              <Route path="settings" element={<FoundPetReporterSettings />} />
+          {/* Adopter */}
+          <Route element={<ProtectedRoute allowedRoles={['adopter', 'admin']} />}>
+            <Route path="/adopter" element={<DashboardLayout />}>
+              <Route index element={<AdopterOverview />} />
+              <Route path="my-requests" element={<AdopterOverview />} />
+              <Route path="messages" element={<OwnerMessages />} />
+              <Route path="settings" element={<OwnerSettings />} />
             </Route>
           </Route>
 
@@ -262,6 +273,22 @@ function App() {
               <Route path="pets" element={<AdminPets />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="settings" element={<AdminSettings />} />
+            </Route>
+          </Route>
+
+          {/* Public Pet Tag (ResQTag - no login required) */}
+          <Route path="/tag/:tagId" element={<PublicPetTag />} />
+          <Route path="/pet/:id/tag" element={<PublicPetTag />} />
+
+          {/* Lost Pet Role Dashboard */}
+          <Route element={<ProtectedRoute allowedRoles={['lost_pet', 'admin']} />}>
+            <Route path="/lost-pet" element={<DashboardLayout />}>
+              <Route index element={<LostPetOverview />} />
+              <Route path="report" element={<LostPetReportMissing />} />
+              <Route path="my-reports" element={<LostPetMyReports />} />
+              <Route path="matches" element={<LostPetMatches />} />
+              <Route path="messages" element={<LostPetMessages />} />
+              <Route path="settings" element={<LostPetSettings />} />
             </Route>
           </Route>
 

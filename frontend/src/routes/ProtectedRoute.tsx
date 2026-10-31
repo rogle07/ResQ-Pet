@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAppSelector } from '@/app/hooks';
 import type { UserRole } from '@/types';
+import { roleHomePath } from '@/routes/roleHomePath';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 
 interface ProtectedRouteProps {
@@ -20,7 +21,7 @@ const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
+    return <Navigate to={roleHomePath(user.role)} replace />;
   }
 
   return <Outlet />;
