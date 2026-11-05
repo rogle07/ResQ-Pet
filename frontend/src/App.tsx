@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useSessionBootstrap } from '@/hooks/useSessionBootstrap';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -126,7 +126,7 @@ function App() {
           {/* Public */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+          <Route path="/admin/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/track-pet" element={<TrackPet />} />
