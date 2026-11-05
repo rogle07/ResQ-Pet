@@ -114,6 +114,7 @@ import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminPets from '@/pages/admin/AdminPets';
 import AdminAnalytics from '@/pages/admin/AdminAnalytics';
 import AdminSettings from '@/pages/admin/AdminSettings';
+import AdminIoT from '@/pages/admin/AdminIoT';
 
 function App() {
   useSessionBootstrap();
@@ -273,6 +274,7 @@ function App() {
               <Route path="pets" element={<AdminPets />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="iot" element={<AdminIoT />} />
             </Route>
           </Route>
 

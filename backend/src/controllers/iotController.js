@@ -330,15 +330,54 @@ const registerDevice = asyncHandler(async (req, res) => {
   // Check if device already exists
   const existingDevice = await IoTDevice.findOne({ deviceId: assignedId });
   if (existingDevice) {
-    if (existingDevice.owner.toString() !== req.user._id.toString()) {
+    if (existingDevice.owner && existingDevice.owner.toString() !== req.user._id.toString()) {
       res.status(403);
       throw new Error('This Device ID is already registered to another user account');
-    } else {
-      res.status(400);
-      throw new Error('You have already registered this Device ID');
     }
-  }
 
+    // Pre-provisioned device claim flow
+    if (!existingDevice.owner) {
+      existingDevice.owner = req.user._id;
+      if (deviceName) existingDevice.deviceName = deviceName;
+
+      let linkedPet = null;
+      if (petId) {
+        linkedPet = await Pet.findById(petId);
+        if (!linkedPet) {
+          res.status(404);
+          throw new Error('Selected pet not found');
+        }
+        if (linkedPet.owner.toString() !== req.user._id.toString()) {
+          res.status(403);
+          throw new Error('Not authorized to assign device to this pet');
+        }
+        existingDevice.pet = linkedPet._id;
+        existingDevice.assignmentStatus = 'assigned';
+        linkedPet.collar.deviceId = assignedId;
+        linkedPet.collar.isActive = true;
+        await linkedPet.save();
+      }
+
+      await existingDevice.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Pre-provisioned device claimed and linked to your account successfully.',
+        device: {
+          _id: existingDevice._id,
+          deviceId: existingDevice.deviceId,
+          deviceName: existingDevice.deviceName,
+          status: existingDevice.status,
+          assignmentStatus: existingDevice.assignmentStatus,
+          pet: linkedPet ? { _id: linkedPet._id, name: linkedPet.name } : null,
+          connectionStatus: getConnectionStatus(existingDevice.lastCommunicationAt),
+        },
+      });
+    }
+
+    res.status(400);
+    throw new Error('You have already registered this Device ID');
+  }
   // Generate a secure raw device authentication token (32 characters hex)
   const rawToken = `rqp_sec_${crypto.randomBytes(20).toString('hex')}`;
   const tokenHash = hashToken(rawToken);
@@ -359,11 +398,11 @@ const registerDevice = asyncHandler(async (req, res) => {
   const device = await IoTDevice.create({
     deviceId: assignedId,
     deviceName: deviceName || 'Smart Collar',
-    deviceToken: rawToken,
     tokenHash,
     owner: req.user._id,
     pet: assignedPet ? assignedPet._id : null,
     status: 'registered',
+    assignmentStatus: assignedPet ? 'assigned' : 'unassigned',
   });
 
   if (assignedPet) {
@@ -405,9 +444,12 @@ const assignDevice = asyncHandler(async (req, res) => {
     throw new Error('Device not found');
   }
 
-  if (device.owner.toString() !== req.user._id.toString()) {
+  if (device.owner && device.owner.toString() !== req.user._id.toString()) {
     res.status(403);
     throw new Error('Not authorized to configure this device');
+  }
+  if (!device.owner) {
+    device.owner = req.user._id;
   }
 
   const pet = await Pet.findById(petId);
@@ -435,6 +477,7 @@ const assignDevice = asyncHandler(async (req, res) => {
   }
 
   device.pet = pet._id;
+  device.assignmentStatus = 'assigned';
   device.status = device.lastCommunicationAt ? 'active' : 'registered';
   await device.save();
 
@@ -482,6 +525,7 @@ const unlinkDevice = asyncHandler(async (req, res) => {
   }
 
   device.pet = null;
+  device.assignmentStatus = 'unassigned';
   device.status = 'unlinked';
   await device.save();
 
@@ -508,9 +552,9 @@ const regenerateDeviceToken = asyncHandler(async (req, res) => {
     throw new Error('Not authorized');
   }
 
-  const rawToken = `rqp_sec_${crypto.randomBytes(20).toString('hex')}`;
-  device.deviceToken = rawToken;
+  const rawToken = `rqp_sec_${crypto.randomBytes(24).toString('hex')}`;
   device.tokenHash = hashToken(rawToken);
+  device.deviceToken = undefined;
   await device.save();
 
   res.json({

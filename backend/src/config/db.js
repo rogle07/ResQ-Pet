@@ -7,7 +7,7 @@ const connectDB = async () => {
 
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       autoIndex: process.env.NODE_ENV !== 'production',
-      serverSelectionTimeoutMS: 2500,
+      serverSelectionTimeoutMS: Number(process.env.MONGO_TIMEOUT_MS) || 10000,
     });
 
     logger.info(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);

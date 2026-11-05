@@ -17,7 +17,7 @@ const ioTDeviceSchema = new mongoose.Schema(
     },
     deviceToken: {
       type: String,
-      required: true,
+      required: false,
       select: false, // Hidden by default from normal queries
     },
     tokenHash: {
@@ -28,7 +28,8 @@ const ioTDeviceSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+      default: null,
       index: true,
     },
     pet: {
@@ -41,6 +42,12 @@ const ioTDeviceSchema = new mongoose.Schema(
       type: String,
       enum: ['registered', 'active', 'offline', 'unlinked'],
       default: 'registered',
+      index: true,
+    },
+    assignmentStatus: {
+      type: String,
+      enum: ['unassigned', 'assigned'],
+      default: 'unassigned',
       index: true,
     },
     lastCommunicationAt: {

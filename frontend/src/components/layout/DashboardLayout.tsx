@@ -149,6 +149,7 @@ const NAV_BY_ROLE: Record<string, NavItem[]> = {
     { to: '/admin', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, end: true },
     { to: '/admin/users', label: 'Users', icon: <Users className="h-5 w-5" /> },
     { to: '/admin/pets', label: 'Pets', icon: <PawPrint className="h-5 w-5" /> },
+    { to: '/admin/iot', label: 'IoT Devices', icon: <Cpu className="h-5 w-5" /> },
     { to: '/admin/analytics', label: 'Analytics', icon: <TrendingUp className="h-5 w-5" /> },
     { to: '/admin/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
   ],

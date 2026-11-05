@@ -12,6 +12,9 @@ const {
   adminDeletePet,
   getPlatformAnalytics,
   getSystemLogs,
+  adminProvisionDevice,
+  adminListDevices,
+  adminRotateDeviceToken,
 } = require('../controllers/adminController');
 const { getSettings, updateSetting } = require('../controllers/settingsController');
 
@@ -43,5 +46,15 @@ router.get('/logs', getSystemLogs);
 // System settings
 router.get('/settings', getSettings);
 router.put('/settings/:key', updateSetting);
+
+// ---------------------------------------------------------------------------
+// Admin IoT Device Provisioning
+// ---------------------------------------------------------------------------
+// POST  /api/admin/iot/provision              – provision a new device (returns token ONCE)
+// GET   /api/admin/iot/devices                – list all devices
+// POST  /api/admin/iot/devices/:deviceId/rotate-token – rotate an existing device's token
+router.post('/iot/provision', adminProvisionDevice);
+router.get('/iot/devices', adminListDevices);
+router.post('/iot/devices/:deviceId/rotate-token', adminRotateDeviceToken);
 
 module.exports = router;
