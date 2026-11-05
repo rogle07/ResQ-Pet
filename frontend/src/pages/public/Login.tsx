@@ -86,8 +86,13 @@ const Login = () => {
       } catch { /* ignore */ }
       const fromPath = (location.state as { from?: Location })?.from?.pathname;
       navigate(getSafeRedirect(data.user.role, fromPath), { replace: true });
-    } catch {
-      // Resilient login fallback: Accept any email entered by the user!
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      if (axiosErr?.response?.data?.message) {
+        setServerError(axiosErr.response.data.message);
+        return;
+      }
+      // Resilient login fallback: Accept any email entered by the user when offline!
       const emailParts = values.email.split('@')[0].replace(/[._-]/g, ' ');
       const formattedName = emailParts
         ? emailParts
