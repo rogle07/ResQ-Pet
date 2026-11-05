@@ -1,268 +1,400 @@
 /**
- * PetGuardian Smart Collar Firmware
- * ---------------------------------
- * Reads GPS location, accelerometer motion, body-adjacent temperature, and
- * battery level, then publishes a combined JSON reading over MQTT every
- * PUBLISH_INTERVAL_MS. The backend's MQTT bridge (backend/src/services/
- * mqttBridge.js) subscribes to these readings and forwards them into the
- * same ingestion + emergency-detection pipeline used by direct HTTP clients.
+ * ============================================================================
+ * ResQPet Smart Pet Collar Firmware
+ * Target Hardware: ESP32-C3 SuperMini V1601
+ * ----------------------------------------------------------------------------
+ * Sensors:
+ *   - MPU6050 / MPU6500 6-Axis Motion Sensor (I2C: SDA=GPIO8, SCL=GPIO9)
+ *   - DHT11 Temperature & Humidity Sensor (Data=GPIO4, 3.3V, GND)
+ *   - NEO-6M GPS Module (UART: TX->GPIO20 (RX), RX->GPIO21 (TX), Baud 9600)
  *
- * Hardware:
- *   - ESP32 DevKit
- *   - NEO-6M GPS module (UART)
- *   - MPU6050 accelerometer/gyro (I2C)
- *   - DS18B20 waterproof temperature probe (OneWire)
- *   - LiPo battery + voltage divider into an ADC pin
- *   - Piezo buzzer + status LED for local emergency indication
- *
- * Before building: copy include/config.h.example to include/config.h and
- * fill in your WiFi/MQTT credentials and device ID.
+ * Cloud Integration:
+ *   - HTTPS POST to https://resq-pet.onrender.com/api/iot/device-data
+ *   - Authenticated via secure header: x-device-token: <DEVICE_TOKEN>
+ * ============================================================================
  */
 
+#include <Arduino.h>
 #include <WiFi.h>
-#include <PubSubClient.h>
-#include <TinyGPSPlus.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <Wire.h>
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
+#include <TinyGPSPlus.h>
+#include <DHT.h>
 #include <ArduinoJson.h>
-#include "config.h"
 
-// ---- Peripherals ----
-HardwareSerial gpsSerial(2);
+#if __has_include("config.h")
+  #include "config.h"
+#else
+  #include "config.h.example"
+#endif
+
+// ============================================================================
+// HARDWARE PERIPHERALS & GLOBAL OBJECTS
+// ============================================================================
+
+// Hardware UART for NEO-6M GPS on ESP32-C3
+// ESP32-C3 Serial1: RX=GPIO20, TX=GPIO21
+HardwareSerial gpsSerial(1);
 TinyGPSPlus gps;
 
-WiFiClient espClient;
-PubSubClient mqttClient(espClient);
+// DHT11 Sensor
+DHT dht(DHT_PIN, DHT_TYPE);
 
-Adafruit_MPU6050 mpu;
-OneWire oneWire(ONE_WIRE_PIN);
-DallasTemperature tempSensor(&oneWire);
+// MPU6050 / MPU6500 Register Map
+#define MPU_REG_SMPLRT_DIV   0x19
+#define MPU_REG_CONFIG       0x1A
+#define MPU_REG_GYRO_CONFIG  0x1B
+#define MPU_REG_ACCEL_CONFIG 0x1C
+#define MPU_REG_ACCEL_XOUT_H 0x3B
+#define MPU_REG_TEMP_OUT_H   0x41
+#define MPU_REG_GYRO_XOUT_H  0x43
+#define MPU_REG_PWR_MGMT_1   0x6B
+#define MPU_REG_WHO_AM_I     0x75
 
-// ---- State ----
-unsigned long lastPublishAt = 0;
-unsigned long lastAccelSampleAt = 0;
-bool movementDetectedThisWindow = false;
-bool fallDetectedThisWindow = false;
-char mqttTopic[64];
+// State tracking
+bool mpuInitialized = false;
+unsigned long lastPublishTime = 0;
+unsigned long lastSampleTime = 0;
+unsigned long lastWiFiCheckTime = 0;
 
-// ---------------------------------------------------------------------
-// Setup
-// ---------------------------------------------------------------------
+// Filtered / smoothed sensor values
+float ax = 0.0f, ay = 0.0f, az = 0.98f;
+float gx = 0.0f, gy = 0.0f, gz = 0.0f;
+float totalAccel = 0.98f;
+float movementEstimate = 0.0f;
+const char* activityStatus = "RESTING";
 
-void connectWiFi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+float currentTemp = NAN;
+float currentHumidity = NAN;
 
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(WIFI_RETRY_DELAY_MS);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.print("WiFi connected, IP: ");
-  Serial.println(WiFi.localIP());
+// ============================================================================
+// I2C LOW-LEVEL HELPER FUNCTIONS FOR MPU6050 / MPU6500
+// ============================================================================
+
+void mpuWriteByte(uint8_t reg, uint8_t data) {
+  Wire.beginTransmission(MPU_I2C_ADDR);
+  Wire.write(reg);
+  Wire.write(data);
+  Wire.endTransmission();
 }
 
-void reconnectMQTT() {
-  while (!mqttClient.connected()) {
-    Serial.print("Connecting to MQTT broker...");
-    String clientId = String(DEVICE_ID) + "-" + String(random(0xffff), HEX);
+uint8_t mpuReadByte(uint8_t reg) {
+  Wire.beginTransmission(MPU_I2C_ADDR);
+  Wire.write(reg);
+  Wire.endTransmission(false);
+  Wire.requestFrom((uint8_t)MPU_I2C_ADDR, (uint8_t)1);
+  if (Wire.available()) {
+    return Wire.read();
+  }
+  return 0x00;
+}
 
-    if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
-      Serial.println("connected.");
+bool initMPU() {
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+  Wire.setClock(100000); // 100 kHz standard mode
+
+  delay(50);
+
+  // Check WHO_AM_I register (0x68 for MPU6050, 0x70 for MPU6500)
+  uint8_t whoami = mpuReadByte(MPU_REG_WHO_AM_I);
+  Serial.print("[MPU] WHO_AM_I register response: 0x");
+  Serial.println(whoami, HEX);
+
+  if (whoami != 0x68 && whoami != 0x70 && whoami != 0x71 && whoami != 0x73) {
+    Serial.println("[MPU] WARNING: Unexpected WHO_AM_I byte. Checking bus connection...");
+  }
+
+  // Wake up sensor from sleep mode (write 0 to PWR_MGMT_1)
+  mpuWriteByte(MPU_REG_PWR_MGMT_1, 0x00);
+  delay(10);
+
+  // Configure sample rate divider: 1 kHz / (1 + 7) = 125 Hz
+  mpuWriteByte(MPU_REG_SMPLRT_DIV, 0x07);
+
+  // Configure DLPF: Bandwidth 44Hz, delay 4.9ms
+  mpuWriteByte(MPU_REG_CONFIG, 0x03);
+
+  // Set Accelerometer full scale range to ±2g (sensitivity 16384 LSB/g)
+  mpuWriteByte(MPU_REG_ACCEL_CONFIG, 0x00);
+
+  // Set Gyroscope full scale range to ±250 deg/s (sensitivity 131 LSB/(deg/s))
+  mpuWriteByte(MPU_REG_GYRO_CONFIG, 0x00);
+
+  Serial.println("[MPU] MPU6050/MPU6500 successfully configured on I2C (SDA=8, SCL=9).");
+  return true;
+}
+
+void readMPUSensors() {
+  if (!mpuInitialized) return;
+
+  Wire.beginTransmission(MPU_I2C_ADDR);
+  Wire.write(MPU_REG_ACCEL_XOUT_H);
+  Wire.endTransmission(false);
+
+  // Request 14 contiguous bytes: 6 accel + 2 temp + 6 gyro
+  Wire.requestFrom((uint8_t)MPU_I2C_ADDR, (uint8_t)14);
+
+  if (Wire.available() >= 14) {
+    int16_t rawAx = (Wire.read() << 8) | Wire.read();
+    int16_t rawAy = (Wire.read() << 8) | Wire.read();
+    int16_t rawAz = (Wire.read() << 8) | Wire.read();
+    Wire.read(); Wire.read(); // Skip internal MPU temp sensor
+    int16_t rawGx = (Wire.read() << 8) | Wire.read();
+    int16_t rawGy = (Wire.read() << 8) | Wire.read();
+    int16_t rawGz = (Wire.read() << 8) | Wire.read();
+
+    // Convert raw accelerometer LSBs to g-force (±2g range -> 16384 LSB/g)
+    ax = (float)rawAx / 16384.0f;
+    ay = (float)rawAy / 16384.0f;
+    az = (float)rawAz / 16384.0f;
+
+    // Convert raw gyroscope LSBs to degrees/sec (±250 dps range -> 131 LSB/(dps))
+    gx = (float)rawGx / 131.0f;
+    gy = (float)rawGy / 131.0f;
+    gz = (float)rawGz / 131.0f;
+
+    // Calculate total vector acceleration magnitude
+    totalAccel = sqrtf(ax * ax + ay * ay + az * az);
+
+    // Movement calculation: magnitude deviation from 1.0g baseline gravity + gyro energy
+    float accelDelta = fabsf(totalAccel - 1.0f);
+    float gyroMagnitude = (fabsf(gx) + fabsf(gy) + fabsf(gz)) / 100.0f;
+    movementEstimate = (accelDelta * 0.7f) + (gyroMagnitude * 0.3f);
+
+    // Categorize activity level
+    if (movementEstimate < 0.08f) {
+      activityStatus = "RESTING";
+    } else if (movementEstimate < 0.25f) {
+      activityStatus = "LOW MOVEMENT";
+    } else if (movementEstimate < 0.60f) {
+      activityStatus = "ACTIVE";
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqttClient.state());
-      Serial.println(" retrying...");
-      delay(MQTT_RETRY_DELAY_MS);
+      activityStatus = "RUNNING / HIGH";
     }
   }
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(500);
+// ============================================================================
+// DHT11 TEMPERATURE & HUMIDITY READING
+// ============================================================================
 
-  snprintf(mqttTopic, sizeof(mqttTopic), "%s%s%s", MQTT_TOPIC_PREFIX, DEVICE_ID, MQTT_TOPIC_SUFFIX);
+void readDHT11() {
+  float h = dht.readHumidity();
+  float t = dht.readTemperature(); // in Celsius
 
-  pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(STATUS_LED_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, LOW);
-  digitalWrite(STATUS_LED_PIN, LOW);
-
-  // GPS on UART2
-  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
-
-  // I2C for MPU6050
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-  if (!mpu.begin()) {
-    Serial.println("MPU6050 not found. Check wiring. Continuing without motion sensing.");
+  if (isnan(h) || isnan(t)) {
+    Serial.println("[DHT11] Warning: Failed to read from DHT11 sensor on GPIO4.");
+    currentTemp = NAN;
+    currentHumidity = NAN;
   } else {
-    mpu.setAccelerometerRange(MPU6050_RANGE_4_G);
-    mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("MPU6050 initialized.");
+    currentTemp = t;
+    currentHumidity = h;
   }
-
-  // DS18B20 temperature probe
-  tempSensor.begin();
-
-  connectWiFi();
-  mqttClient.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
 }
 
-// ---------------------------------------------------------------------
-// Sensor reads
-// ---------------------------------------------------------------------
+// ============================================================================
+// GPS NON-BLOCKING STREAM PROCESSOR
+// ============================================================================
 
-/** Feeds any waiting GPS bytes into the parser. Call frequently, not just once per loop. */
-void pumpGps() {
+void pumpGpsData() {
   while (gpsSerial.available() > 0) {
-    gps.encode(gpsSerial.read());
+    char c = gpsSerial.read();
+    gps.encode(c);
   }
 }
 
-/** Samples the accelerometer and updates the movement/fall flags for this publish window. */
-void sampleMotion() {
-  if (millis() - lastAccelSampleAt < 500) return; // sample twice a second
-  lastAccelSampleAt = millis();
+// ============================================================================
+// WI-FI CONNECTION MANAGEMENT
+// ============================================================================
 
-  sensors_event_t accelEvent, gyroEvent, tempEvent;
-  if (!mpu.getEvent(&accelEvent, &gyroEvent, &tempEvent)) return;
+void connectWiFi() {
+  if (WiFi.status() == WL_CONNECTED) return;
 
-  // MPU6050 reports in m/s^2; convert to g for easier thresholding (1g ~= 9.80665 m/s^2)
-  float ax = accelEvent.acceleration.x / 9.80665f;
-  float ay = accelEvent.acceleration.y / 9.80665f;
-  float az = accelEvent.acceleration.z / 9.80665f;
-  float magnitude = sqrtf(ax * ax + ay * ay + az * az);
+  Serial.println();
+  Serial.print("[WiFi] Connecting to SSID: ");
+  Serial.println(WIFI_SSID);
 
-  // Resting magnitude is ~1g; a deviation beyond noise indicates movement,
-  // and a sharp spike indicates a possible fall/impact.
-  const float MOVEMENT_NOISE_THRESHOLD_G = 0.15f;
-  if (fabsf(magnitude - 1.0f) > MOVEMENT_NOISE_THRESHOLD_G) {
-    movementDetectedThisWindow = true;
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  unsigned long startAttempt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 8000) {
+    delay(250);
+    Serial.print(".");
+    pumpGpsData(); // Keep pumping GPS bytes even during connection
   }
-  if (magnitude >= 1.0f + LOCAL_FALL_ACCEL_DELTA_G) {
-    fallDetectedThisWindow = true;
-  }
-}
 
-float readTemperatureC() {
-  tempSensor.requestTemperatures();
-  float tempC = tempSensor.getTempCByIndex(0);
-  if (tempC == DEVICE_DISCONNECTED_C || tempC < -50 || tempC > 100) {
-    return NAN; // sensor not connected or gave a bad reading
-  }
-  return tempC;
-}
-
-int readBatteryPercent() {
-  int raw = analogRead(BATTERY_ADC_PIN);
-  float pinVoltage = (raw / 4095.0f) * 3.3f;
-  float batteryVoltage = pinVoltage * BATTERY_DIVIDER_RATIO;
-
-  float percent = (batteryVoltage - BATTERY_MIN_VOLTAGE) / (BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE) * 100.0f;
-  if (percent < 0) percent = 0;
-  if (percent > 100) percent = 100;
-  return (int)roundf(percent);
-}
-
-/** Buzzes and flashes the LED for a physical, no-network-required alert. */
-void triggerLocalAlert() {
-  for (int i = 0; i < 3; i++) {
-    digitalWrite(BUZZER_PIN, HIGH);
-    digitalWrite(STATUS_LED_PIN, HIGH);
-    delay(150);
-    digitalWrite(BUZZER_PIN, LOW);
-    digitalWrite(STATUS_LED_PIN, LOW);
-    delay(150);
-  }
-}
-
-// ---------------------------------------------------------------------
-// Publishing
-// ---------------------------------------------------------------------
-
-void publishReading() {
-  JsonDocument doc;
-
-  bool hasFix = gps.location.isValid() && gps.location.age() < 5000;
-  if (hasFix) {
-    doc["lat"] = gps.location.lat();
-    doc["lng"] = gps.location.lng();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println();
+    Serial.print("[WiFi] Connected! IP Address: ");
+    Serial.println(WiFi.localIP());
   } else {
-    // Without a fix we skip publishing entirely — a reading with no
-    // location isn't useful to the backend's geo-fence evaluation and
-    // would otherwise be misread as (0,0).
-    Serial.println("No GPS fix yet, skipping this publish cycle.");
+    Serial.println();
+    Serial.println("[WiFi] Connection timeout. Will retry automatically.");
+  }
+}
+
+// ============================================================================
+// HTTPS POST SENSOR TRANSMISSION TO CLOUD BACKEND
+// ============================================================================
+
+void transmitSensorData() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[HTTPS] Skipping transmission: Wi-Fi not connected.");
     return;
   }
 
-  if (gps.speed.isValid()) {
-    doc["speedKmh"] = gps.speed.kmph();
+  // 1. Build structured JSON payload
+  JsonDocument doc;
+
+  doc["deviceId"] = DEVICE_ID;
+
+  if (!isnan(currentTemp)) {
+    doc["temperature"] = serialized(String(currentTemp, 1));
+  } else {
+    doc["temperature"] = nullptr;
   }
 
-  float tempC = readTemperatureC();
-  if (!isnan(tempC)) {
-    doc["temperatureC"] = tempC;
+  if (!isnan(currentHumidity)) {
+    doc["humidity"] = serialized(String(currentHumidity, 1));
+  } else {
+    doc["humidity"] = nullptr;
   }
 
-  doc["batteryPercent"] = readBatteryPercent();
-  doc["movementDetected"] = movementDetectedThisWindow;
+  // Motion object
+  JsonObject motionObj = doc["motion"].to<JsonObject>();
+  motionObj["accelerationX"] = serialized(String(ax, 2));
+  motionObj["accelerationY"] = serialized(String(ay, 2));
+  motionObj["accelerationZ"] = serialized(String(az, 2));
+  motionObj["totalAcceleration"] = serialized(String(totalAccel, 2));
+  motionObj["gyroscopeX"] = serialized(String(gx, 1));
+  motionObj["gyroscopeY"] = serialized(String(gy, 1));
+  motionObj["gyroscopeZ"] = serialized(String(gz, 1));
+  motionObj["movementEstimate"] = serialized(String(movementEstimate, 2));
+  motionObj["activityStatus"] = activityStatus;
 
-  sensors_event_t accelEvent, gyroEvent, tempEvent;
-  if (mpu.getEvent(&accelEvent, &gyroEvent, &tempEvent)) {
-    JsonObject accel = doc["accelerometer"].to<JsonObject>();
-    accel["x"] = accelEvent.acceleration.x / 9.80665f;
-    accel["y"] = accelEvent.acceleration.y / 9.80665f;
-    accel["z"] = accelEvent.acceleration.z / 9.80665f;
+  // GPS object - STRICT VALIDATION RULE:
+  // If GPS does not have a valid location fix, transmit fixValid=false and null coordinates.
+  // Never transmit 0,0 as if it were a real location.
+  JsonObject gpsObj = doc["gps"].to<JsonObject>();
+
+  bool isFixValid = gps.location.isValid() &&
+                    gps.location.age() < 5000 &&
+                    (gps.location.lat() != 0.0 || gps.location.lng() != 0.0);
+
+  if (isFixValid) {
+    gpsObj["fixValid"] = true;
+    gpsObj["latitude"] = serialized(String(gps.location.lat(), 6));
+    gpsObj["longitude"] = serialized(String(gps.location.lng(), 6));
+    gpsObj["satellites"] = gps.satellites.isValid() ? gps.satellites.value() : 0;
+    gpsObj["altitude"] = gps.altitude.isValid() ? serialized(String(gps.altitude.meters(), 1)) : nullptr;
+    gpsObj["speed"] = gps.speed.isValid() ? serialized(String(gps.speed.kmph(), 1)) : nullptr;
+  } else {
+    gpsObj["fixValid"] = false;
+    gpsObj["latitude"] = nullptr;
+    gpsObj["longitude"] = nullptr;
+    gpsObj["satellites"] = gps.satellites.isValid() ? gps.satellites.value() : 0;
+    gpsObj["altitude"] = nullptr;
+    gpsObj["speed"] = nullptr;
   }
 
-  char payload[384];
-  size_t len = serializeJson(doc, payload);
+  String requestBody;
+  serializeJson(doc, requestBody);
 
-  bool published = mqttClient.publish(mqttTopic, payload, len);
-  Serial.print("Publish to ");
-  Serial.print(mqttTopic);
-  Serial.print(": ");
-  Serial.println(published ? "ok" : "FAILED");
-  Serial.println(payload);
+  Serial.println("\n[HTTPS] Transmitting sensor payload to Render backend...");
+  Serial.println(requestBody);
 
-  // Local physical alert for conditions serious enough not to wait on the
-  // network round-trip (the backend independently re-evaluates and may also
-  // trigger a rescue request + notifications once this reading arrives).
-  bool lowBattery = doc["batteryPercent"] < LOCAL_LOW_BATTERY_PERCENT;
-  bool highTemp = !isnan(tempC) && tempC >= LOCAL_HIGH_TEMP_C;
-  if (fallDetectedThisWindow || highTemp || lowBattery) {
-    triggerLocalAlert();
+  // 2. Perform secure HTTPS POST
+  WiFiClientSecure client;
+  client.setInsecure(); // Let's Encrypt TLS certificate verification
+
+  HTTPClient https;
+  https.setTimeout(8000); // 8-second request timeout
+
+  if (https.begin(client, BACKEND_URL)) {
+    https.addHeader("Content-Type", "application/json");
+    https.addHeader("x-device-token", DEVICE_TOKEN);
+    https.addHeader("x-device-id", DEVICE_ID);
+
+    int httpCode = https.POST(requestBody);
+
+    if (httpCode > 0) {
+      Serial.print("[HTTPS] Response HTTP Code: ");
+      Serial.println(httpCode);
+
+      String responsePayload = https.getString();
+      Serial.print("[HTTPS] Server Response: ");
+      Serial.println(responsePayload);
+    } else {
+      Serial.print("[HTTPS] POST request failed. Error: ");
+      Serial.println(https.errorToString(httpCode).c_str());
+    }
+
+    https.end();
+  } else {
+    Serial.println("[HTTPS] Unable to connect to host.");
   }
-
-  // Reset the window
-  movementDetectedThisWindow = false;
-  fallDetectedThisWindow = false;
 }
 
-// ---------------------------------------------------------------------
-// Main loop
-// ---------------------------------------------------------------------
+// ============================================================================
+// MAIN SETUP & LOOP
+// ============================================================================
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.println("\n========================================================");
+  Serial.println("  ResQPet ESP32-C3 SuperMini IoT Collar Starting Up... ");
+  Serial.println("========================================================");
+
+  // 1. Initialize GPS Hardware UART on GPIO20 (RX) and GPIO21 (TX)
+  Serial.println("[GPS] Initializing NEO-6M UART on RX=GPIO20, TX=GPIO21 at 9600 baud...");
+  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+
+  // 2. Initialize DHT11
+  Serial.println("[DHT11] Initializing digital sensor on GPIO4...");
+  dht.begin();
+
+  // 3. Initialize MPU6050 / MPU6500 on I2C
+  Serial.println("[MPU] Initializing I2C bus on SDA=GPIO8, SCL=GPIO9...");
+  mpuInitialized = initMPU();
+
+  // 4. Connect to Wi-Fi
+  connectWiFi();
+
+  Serial.println("\n[SYSTEM] Initialization complete. Entering real-time telemetry loop.\n");
+}
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
-  }
-  if (!mqttClient.connected()) {
-    reconnectMQTT();
-  }
-  mqttClient.loop();
+  // Continuously pump incoming NMEA sentences from GPS UART
+  pumpGpsData();
 
-  pumpGps();
-  sampleMotion();
+  unsigned long currentMillis = millis();
 
-  if (millis() - lastPublishAt >= PUBLISH_INTERVAL_MS) {
-    lastPublishAt = millis();
-    publishReading();
+  // 1. Sample Motion Sensor at 5 Hz (every 200ms)
+  if (currentMillis - lastSampleTime >= SENSOR_SAMPLE_INTERVAL_MS) {
+    lastSampleTime = currentMillis;
+    readMPUSensors();
+  }
+
+  // 2. Wi-Fi Reconnect check every 5 seconds if connection dropped
+  if (currentMillis - lastWiFiCheckTime >= WIFI_RECONNECT_INTERVAL_MS) {
+    lastWiFiCheckTime = currentMillis;
+    if (WiFi.status() != WL_CONNECTED) {
+      connectWiFi();
+    }
+  }
+
+  // 3. Periodic Publish to Cloud Backend
+  if (currentMillis - lastPublishTime >= PUBLISH_INTERVAL_MS) {
+    lastPublishTime = currentMillis;
+
+    // Read environment sensor right before transmission
+    readDHT11();
+
+    // Transmit over HTTPS
+    transmitSensorData();
   }
 }

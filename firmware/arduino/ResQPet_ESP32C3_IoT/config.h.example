@@ -1,0 +1,43 @@
+#ifndef RESQPET_CONFIG_H
+#define RESQPET_CONFIG_H
+
+// ============================================================================
+// RESQPET ESP32-C3 SUPERMINI IoT WEARABLE CONFIGURATION
+// ============================================================================
+
+// 1. DEVICE IDENTITY & AUTHENTICATION
+// Must match the Device ID and Device Token generated in the Pet Owner Dashboard:
+// (Pet Owner Dashboard > Wearable IoT > Add Device / Device Management)
+#define DEVICE_ID "RQP-ESP32-0001"
+#define DEVICE_TOKEN "rqp_sec_your_secret_device_token_here"
+
+// 2. WI-FI CREDENTIALS
+#define WIFI_SSID "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+
+// 3. BACKEND SERVER ENDPOINT
+// Our deployed production backend on Render:
+#define BACKEND_URL "https://resq-pet.onrender.com/api/iot/device-data"
+
+// 4. TIMING SETTINGS
+#define PUBLISH_INTERVAL_MS 10000UL     // Send sensor telemetry every 10 seconds
+#define SENSOR_SAMPLE_INTERVAL_MS 200UL // Sample MPU accelerometer/gyro 5 times/sec
+#define WIFI_RECONNECT_INTERVAL_MS 5000UL
+
+// 5. HARDWARE PIN CONFIGURATION (ESP32-C3 SuperMini V1601)
+// MPU6050 / MPU6500 (I2C)
+#define I2C_SDA_PIN 8
+#define I2C_SCL_PIN 9
+#define MPU_I2C_ADDR 0x68
+
+// DHT11 Temperature & Humidity Sensor
+#define DHT_PIN 4
+#define DHT_TYPE DHT11
+
+// NEO-6M GPS Module (UART)
+#define GPS_RX_PIN 20   // ESP32 GPIO20 connects to GPS TX
+#define GPS_TX_PIN 21   // ESP32 GPIO21 connects to GPS RX
+#define GPS_BAUD 9600
+
+#endif // RESQPET_CONFIG_H
+
