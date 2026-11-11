@@ -71,12 +71,18 @@ export interface Pet {
   color?: string;
   weightKg?: number;
   images: PetImage[];
+  description?: string;
   qrCode?: string;
+  qrCodeSvg?: string;
   tagId?: string;
   resqTag?: {
     isActive: boolean;
     showPhone?: boolean;
+    enableCall?: boolean;
+    enableWhatsApp?: boolean;
+    showLocation?: boolean;
     showEmail?: boolean;
+    customInstructions?: string;
     generatedAt?: string;
   };
   distinctiveMarks?: string;

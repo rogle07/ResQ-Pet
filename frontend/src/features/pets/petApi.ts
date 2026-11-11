@@ -58,6 +58,26 @@ export const petApi = {
   getGpsHistory: (petId: string, limit = 200) =>
     api.get<{ success: true; logs: GpsLogEntry[] }>(`/iot/history/${petId}`, { params: { limit } }).then((r) => r.data.logs),
 
-  generateTag: (id: string, payload: { showPhone?: boolean; showEmail?: boolean } = {}) =>
-    api.post<{ success: true; tagId: string; tagUrl: string; qrCode?: string; pet: Pet }>(`/pets/${id}/generate-tag`, payload).then((r) => r.data),
+  generateTag: (
+    id: string,
+    payload: {
+      showPhone?: boolean;
+      enableCall?: boolean;
+      enableWhatsApp?: boolean;
+      showLocation?: boolean;
+      customInstructions?: string;
+      regenerate?: boolean;
+    } = {}
+  ) =>
+    api
+      .post<{
+        success: true;
+        tagId: string;
+        scanUrl: string;
+        tagUrl: string;
+        qrCode?: string;
+        qrCodeSvg?: string;
+        pet: Pet;
+      }>(`/pets/${id}/generate-tag`, payload)
+      .then((r) => r.data),
 };

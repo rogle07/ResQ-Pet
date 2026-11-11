@@ -377,7 +377,31 @@ The repository includes administrative backend scripts under `backend/scripts/`:
 
 ---
 
-## 11. Known Technical Debt, Issues & Pending Roadmap
+## 11. Smart Pet QR Identification & Recovery System (ResQTag)
+
+### Architecture & Recovery Workflow
+1. **Collar Integration:**
+   * Every registered pet is issued an unguessable unique `tagId` (e.g. `RQP-8F92A1C0`).
+   * High-contrast QR codes are generated with Level 'H' error correction (30% physical damage recovery) in both 600px PNG and vector SVG.
+   * Printable template formatted specifically for 3D-printed collar inserts (standard 28mm-32mm enclosure pocket).
+   * **Permanent Guarantee:** The QR encodes a permanent URL (`/pet/scan/:tagId`). Updating phone numbers, addresses, or medical info reflects immediately on scan without replacing or re-printing the physical collar tag.
+
+2. **Public Finder Experience (No App Required):**
+   * Accessible by standard camera apps and Google Lens on iOS and Android.
+   * Displays verified pet photo, name, species, breed, distinctive marks, and emergency care notes.
+   * **Contact Owner:** Two prominent action buttons: **Call Owner** and **WhatsApp Owner** (opens prefilled chat).
+   * **Configurable Phone Privacy:** Owners can keep their raw phone number hidden while allowing direct call/WhatsApp routing.
+   * **1-Click Found Pet Alert:** Finder can report finding the pet with 1 click, automatically attaching browser GPS coordinates and transmitting real-time Socket.IO alerts to the owner dashboard.
+
+3. **Key API Endpoints:**
+   * `GET /api/pets/scan/:tagId` (Public, sanitized profile, no auth)
+   * `POST /api/pets/scan/:tagId/contact` (Public, sends message & notifies owner)
+   * `POST /api/pets/scan/:tagId/report-found` (Public, delivers GPS coordinates & notifies owner)
+   * `POST /api/pets/:id/generate-tag` (Private owner, generates/regenerates QR & updates privacy settings)
+
+---
+
+## 12. Known Technical Debt, Issues & Pending Roadmap
 
 1. **Firebase Cloud Messaging (FCM):**
    * *Status:* Client FCM registration (`POST /api/notifications/fcm-token`) is functional, but automated background push triggering via Firebase Admin SDK needs direct wiring into `notificationService.js`.

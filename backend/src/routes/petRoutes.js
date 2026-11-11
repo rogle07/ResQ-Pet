@@ -25,8 +25,11 @@ const router = express.Router();
 // Public QR-scan profile
 router.get('/public/:petId', getPublicPetProfile);
 router.get('/public-tag/:tagId', getPublicTag);
+router.get('/scan/:tagId', getPublicTag);
 router.post('/public-tag/:tagId/contact', contactOwnerViaTag);
+router.post('/scan/:tagId/contact', contactOwnerViaTag);
 router.post('/public-tag/:tagId/report-found', reportFoundViaTag);
+router.post('/scan/:tagId/report-found', reportFoundViaTag);
 
 router.use(protect);
 

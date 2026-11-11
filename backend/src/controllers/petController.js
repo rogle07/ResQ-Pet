@@ -3,6 +3,26 @@ const QRCode = require('qrcode');
 const Pet = require('../models/Pet');
 const { uploadFilesToCloudinary, deleteFromCloudinary } = require('../middleware/upload');
 const { notifyUser, broadcastToRescueTeams } = require('../services/notificationService');
+const { v4: uuidv4 } = require('uuid');
+
+// Helper to generate high-res PNG and vector SVG for QR tags
+const generateQrData = async (scanUrl) => {
+  const qrCode = await QRCode.toDataURL(scanUrl, {
+    errorCorrectionLevel: 'H',
+    type: 'image/png',
+    quality: 1.0,
+    margin: 2,
+    width: 600,
+    color: { dark: '#000000', light: '#ffffff' },
+  });
+  const qrCodeSvg = await QRCode.toString(scanUrl, {
+    type: 'svg',
+    errorCorrectionLevel: 'H',
+    margin: 2,
+    color: { dark: '#000000', light: '#ffffff' },
+  });
+  return { qrCode, qrCodeSvg };
+};
 
 // @desc    Create a new pet profile
 // @route   POST /api/pets
@@ -21,12 +41,26 @@ const createPet = asyncHandler(async (req, res) => {
     weightKg: weightKg !== undefined && weightKg !== '' ? Number(weightKg) : undefined,
   });
 
-  // Generate a QR code that encodes the pet's public profile URL
+  // Generate permanent tagId & high-contrast QR assets
+  if (!pet.tagId) {
+    pet.tagId = `RQP-${uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  }
+  pet.resqTag = {
+    isActive: true,
+    showPhone: false,
+    enableCall: true,
+    enableWhatsApp: true,
+    showLocation: false,
+    showEmail: false,
+    generatedAt: new Date(),
+  };
+
   try {
-    const clientBase = process.env.CLIENT_URL || 'https://res-q-pet-51cc.vercel.app';
-    const profileUrl = `${clientBase}/pets/public/${pet.petId}`;
-    const qrDataUrl = await QRCode.toDataURL(profileUrl);
-    pet.qrCode = qrDataUrl;
+    const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://res-q-pet-51cc.vercel.app';
+    const scanUrl = `${clientBase}/pet/scan/${pet.tagId}`;
+    const { qrCode, qrCodeSvg } = await generateQrData(scanUrl);
+    pet.qrCode = qrCode;
+    pet.qrCodeSvg = qrCodeSvg;
   } catch (qrErr) {
     console.error('QR code generation error:', qrErr.message);
   }
@@ -73,6 +107,41 @@ const getPetById = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to view this pet');
   }
 
+  // Ensure permanent tagId and QR assets exist
+  let modified = false;
+  if (!pet.tagId) {
+    pet.tagId = `RQP-${uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    modified = true;
+  }
+  if (!pet.resqTag) {
+    pet.resqTag = {
+      isActive: true,
+      showPhone: false,
+      enableCall: true,
+      enableWhatsApp: true,
+      showLocation: false,
+      showEmail: false,
+      generatedAt: new Date(),
+    };
+    modified = true;
+  }
+  if (!pet.qrCode || !pet.qrCodeSvg) {
+    try {
+      const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://res-q-pet-51cc.vercel.app';
+      const scanUrl = `${clientBase}/pet/scan/${pet.tagId}`;
+      const { qrCode, qrCodeSvg } = await generateQrData(scanUrl);
+      pet.qrCode = qrCode;
+      pet.qrCodeSvg = qrCodeSvg;
+      modified = true;
+    } catch (qrErr) {
+      console.error('QR generation fallback error:', qrErr.message);
+    }
+  }
+
+  if (modified) {
+    await pet.save();
+  }
+
   res.json({ success: true, pet });
 });
 
@@ -117,7 +186,7 @@ const updatePet = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to update this pet');
   }
 
-  const updatableFields = ['name', 'species', 'breed', 'age', 'gender', 'color', 'weightKg', 'distinctiveMarks'];
+  const updatableFields = ['name', 'species', 'breed', 'age', 'gender', 'color', 'weightKg', 'distinctiveMarks', 'description'];
   updatableFields.forEach((field) => {
     if (req.body[field] !== undefined) pet[field] = req.body[field];
   });
@@ -247,93 +316,187 @@ const markPetSafe = asyncHandler(async (req, res) => {
 });
 
 
-// @desc    Get public pet profile by ResQTag ID
-// @route   GET /api/pets/public-tag/:tagId
+// @desc    Get public pet profile by ResQTag ID / publicPetId (no auth required)
+// @route   GET /api/pets/public-tag/:tagId or /api/pets/scan/:tagId
 // @access  Public
 const getPublicTag = asyncHandler(async (req, res) => {
-  const pet = await Pet.findOne({ tagId: req.params.tagId })
-    .populate('owner', 'name phone email');
+  const identifier = req.params.tagId || req.params.publicPetId || req.params.id;
+
+  const query = {
+    $or: [
+      { tagId: identifier },
+      { petId: identifier },
+    ],
+  };
+
+  const mongoose = require('mongoose');
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    query.$or.push({ _id: identifier });
+  }
+
+  const pet = await Pet.findOne(query).populate('owner', 'name phone email');
 
   if (!pet) {
     res.status(404);
-    throw new Error('ResQTag not found or not registered');
+    throw new Error('Pet tag not found or unregistered');
   }
 
-  if (!pet.resqTag || !pet.resqTag.isActive) {
-    res.status(404);
-    throw new Error('This ResQTag is not active');
+  const owner = pet.owner || {};
+  const showPhone = !!pet.resqTag?.showPhone;
+  const enableCall = pet.resqTag?.enableCall !== false && !!owner.phone;
+  const enableWhatsApp = pet.resqTag?.enableWhatsApp !== false && !!owner.phone;
+
+  let cleanPhone = null;
+  if (owner.phone) {
+    cleanPhone = String(owner.phone).replace(/[^0-9+]/g, '');
+  }
+
+  // Last known location only if owner explicitly enabled public location sharing
+  let publicLocation = null;
+  if (pet.resqTag?.showLocation && pet.lastKnownLocation?.lat && pet.lastKnownLocation?.lng) {
+    publicLocation = {
+      lat: pet.lastKnownLocation.lat,
+      lng: pet.lastKnownLocation.lng,
+      updatedAt: pet.lastKnownLocation.updatedAt || pet.updatedAt,
+    };
   }
 
   res.json({
     success: true,
     pet: {
       _id: pet._id,
-      tagId: pet.tagId,
+      tagId: pet.tagId || pet.petId,
+      petId: pet.petId,
       name: pet.name,
       species: pet.species,
       breed: pet.breed,
       color: pet.color,
       gender: pet.gender,
+      age: pet.age,
+      description: pet.description || pet.distinctiveMarks,
       distinctiveMarks: pet.distinctiveMarks,
       photos: pet.images,
+      status: pet.status,
+      lastKnownLocation: publicLocation,
+      customInstructions: pet.resqTag?.customInstructions || null,
       owner: {
-        name: pet.owner.name,
-        phone: pet.resqTag.showPhone ? pet.owner.phone : null,
-        showPhone: pet.resqTag.showPhone,
+        name: owner.name || 'Pet Owner',
+        phone: showPhone ? owner.phone : null,
+        showPhone,
+        enableCall,
+        enableWhatsApp,
+        callUri: enableCall ? `tel:${cleanPhone}` : null,
+        whatsappUri: enableWhatsApp
+          ? `https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(
+              `Hello ${owner.name || ''}, I found your pet "${pet.name}" (Tag: ${pet.tagId || pet.petId}) registered on ResQPet.`
+            )}`
+          : null,
+      },
+      resqTag: {
+        isActive: pet.resqTag?.isActive !== false,
       },
     },
   });
 });
 
-// @desc    Contact pet owner via ResQTag (sends notification)
+// @desc    Contact pet owner via ResQTag (delivers real-time notification to owner)
 // @route   POST /api/pets/public-tag/:tagId/contact
 // @access  Public
 const contactOwnerViaTag = asyncHandler(async (req, res) => {
-  const { message } = req.body;
-  const pet = await Pet.findOne({ tagId: req.params.tagId })
-    .populate('owner', 'name email');
+  const identifier = req.params.tagId;
+  const { message, finderName, finderPhone } = req.body;
 
-  if (!pet) {
-    res.status(404);
-    throw new Error('ResQTag not found');
+  if (!message || !message.trim()) {
+    res.status(400);
+    throw new Error('Message is required');
   }
 
-  // Create a notification for the owner
-  const Notification = require('../models/Notification');
-  await Notification.create({
-    user: pet.owner._id,
-    title: 'Someone found your pet!',
-    message: `A person found your pet "${pet.name}" and sent a message: "${message}"`,
-    type: 'found_pet',
+  const query = {
+    $or: [{ tagId: identifier }, { petId: identifier }],
+  };
+  const mongoose = require('mongoose');
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    query.$or.push({ _id: identifier });
+  }
+
+  const pet = await Pet.findOne(query).populate('owner', 'name email');
+  if (!pet) {
+    res.status(404);
+    throw new Error('Pet tag not found');
+  }
+
+  const io = req.app.get('io');
+  const contactInfo = finderPhone ? ` (Finder Contact: ${finderPhone}${finderName ? ', ' + finderName : ''})` : '';
+
+  await notifyUser(io, {
+    recipient: pet.owner._id,
+    type: 'pet_found',
+    title: `🚨 Urgent Message Regarding ${pet.name}!`,
+    message: `A finder scanned ${pet.name}'s tag and sent: "${message.trim()}"${contactInfo}`,
+    relatedPet: pet._id,
   });
 
-  res.json({ success: true, message: 'Message sent to owner' });
+  res.json({ success: true, message: 'Message delivered to pet owner successfully' });
 });
 
-// @desc    Report pet found via ResQTag
+// @desc    Report pet found via ResQTag with optional GPS coordinates
 // @route   POST /api/pets/public-tag/:tagId/report-found
 // @access  Public
 const reportFoundViaTag = asyncHandler(async (req, res) => {
-  const pet = await Pet.findOne({ tagId: req.params.tagId })
-    .populate('owner', 'name email');
+  const identifier = req.params.tagId;
+  const { latitude, longitude, accuracy, note, finderPhone, finderName } = req.body;
 
-  if (!pet) {
-    res.status(404);
-    throw new Error('ResQTag not found');
+  const query = {
+    $or: [{ tagId: identifier }, { petId: identifier }],
+  };
+  const mongoose = require('mongoose');
+  if (mongoose.Types.ObjectId.isValid(identifier)) {
+    query.$or.push({ _id: identifier });
   }
 
-  const Notification = require('../models/Notification');
-  await Notification.create({
-    user: pet.owner._id,
-    title: 'Your pet was scanned!',
-    message: `Someone scanned your pet "${pet.name}"'s ResQTag. They may have found your pet.`,
-    type: 'pet_scanned',
+  const pet = await Pet.findOne(query).populate('owner', 'name email');
+  if (!pet) {
+    res.status(404);
+    throw new Error('Pet tag not found');
+  }
+
+  const io = req.app.get('io');
+
+  let locationText = '';
+  if (latitude && longitude) {
+    const latNum = Number(latitude);
+    const lngNum = Number(longitude);
+    if (!isNaN(latNum) && !isNaN(lngNum) && (latNum !== 0 || lngNum !== 0)) {
+      const mapsUrl = `https://maps.google.com/?q=${latNum},${lngNum}`;
+      locationText = ` 📍 GPS Location: ${latNum.toFixed(6)}, ${lngNum.toFixed(6)} (Map: ${mapsUrl})`;
+
+      pet.lastKnownLocation = {
+        lat: latNum,
+        lng: lngNum,
+        updatedAt: new Date(),
+      };
+      await pet.save();
+    }
+  }
+
+  const finderDetails = finderPhone ? ` Finder Phone: ${finderPhone}${finderName ? ' (' + finderName + ')' : ''}.` : '';
+  const noteDetails = note ? ` Message: "${note.trim()}".` : '';
+
+  await notifyUser(io, {
+    recipient: pet.owner._id,
+    type: 'pet_found',
+    title: `🔔 FOUND PET REPORT: ${pet.name.toUpperCase()}!`,
+    message: `Someone reported finding ${pet.name}!${locationText}${finderDetails}${noteDetails}`,
+    relatedPet: pet._id,
   });
 
-  res.json({ success: true, message: 'Report sent to owner' });
+  res.json({
+    success: true,
+    message: 'Found report delivered to owner with your location. Thank you!',
+  });
 });
 
-// @desc    Generate/activate ResQTag for a pet
+// @desc    Generate / update ResQTag for a pet
 // @route   POST /api/pets/:id/generate-tag
 // @access  Private (owner)
 const generateResQTag = asyncHandler(async (req, res) => {
@@ -342,29 +505,36 @@ const generateResQTag = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Pet not found');
   }
-  if (pet.owner.toString() !== req.user._id.toString()) {
+  if (pet.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     res.status(403);
     throw new Error('Not authorized');
   }
 
-  // Generate a unique tag ID if not already assigned
-  if (!pet.tagId) {
-    const { v4: uuidv4 } = require('uuid');
-    pet.tagId = `RQ-${uuidv4().split('-')[0].toUpperCase()}`;
+  const { showPhone, enableCall, enableWhatsApp, showLocation, customInstructions, regenerate } = req.body;
+
+  // Only regenerate tagId if explicitly requested
+  if (regenerate || !pet.tagId) {
+    pet.tagId = `RQP-${uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
   }
+
   pet.resqTag = {
     isActive: true,
-    showPhone: req.body.showPhone || false,
-    showEmail: req.body.showEmail || false,
+    showPhone: showPhone !== undefined ? !!showPhone : (pet.resqTag?.showPhone ?? false),
+    enableCall: enableCall !== undefined ? !!enableCall : (pet.resqTag?.enableCall ?? true),
+    enableWhatsApp: enableWhatsApp !== undefined ? !!enableWhatsApp : (pet.resqTag?.enableWhatsApp ?? true),
+    showLocation: showLocation !== undefined ? !!showLocation : (pet.resqTag?.showLocation ?? false),
+    showEmail: false,
+    customInstructions: customInstructions !== undefined ? customInstructions : (pet.resqTag?.customInstructions || ''),
     generatedAt: new Date(),
   };
 
-  const clientBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'https://resqpet.vercel.app';
-  const tagUrl = `${clientBase}/tag/${pet.tagId}`;
+  const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://res-q-pet-51cc.vercel.app';
+  const scanUrl = `${clientBase}/pet/scan/${pet.tagId}`;
 
   try {
-    const qrDataUrl = await QRCode.toDataURL(tagUrl);
-    pet.qrCode = qrDataUrl;
+    const { qrCode, qrCodeSvg } = await generateQrData(scanUrl);
+    pet.qrCode = qrCode;
+    pet.qrCodeSvg = qrCodeSvg;
   } catch (qrErr) {
     console.error('ResQTag QR code generation error:', qrErr.message);
   }
@@ -374,8 +544,10 @@ const generateResQTag = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     tagId: pet.tagId,
-    tagUrl,
+    scanUrl,
+    tagUrl: scanUrl,
     qrCode: pet.qrCode,
+    qrCodeSvg: pet.qrCodeSvg,
     pet,
   });
 });

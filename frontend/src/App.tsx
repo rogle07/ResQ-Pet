@@ -282,6 +282,8 @@ function App() {
           {/* Public Pet Tag (ResQTag - no login required) */}
           <Route path="/tag/:tagId" element={<PublicPetTag />} />
           <Route path="/pet/:id/tag" element={<PublicPetTag />} />
+          <Route path="/pet/scan/:publicPetId" element={<PublicPetTag />} />
+          <Route path="/scan/:publicPetId" element={<PublicPetTag />} />
 
           {/* Lost Pet Role Dashboard */}
           <Route element={<ProtectedRoute allowedRoles={['lost_pet', 'admin']} />}>
