@@ -37,6 +37,9 @@ export const authApi = {
 
   me: () => api.get<{ success: true; user: User }>('/auth/me').then((r) => r.data),
 
+  updateProfile: (payload: { name?: string; phone?: string }) =>
+    api.put<{ success: true; user: User }>('/auth/me', payload).then((r) => r.data),
+
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }).then((r) => r.data),
 
   resetPassword: (token: string, password: string) =>

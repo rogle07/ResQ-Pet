@@ -434,6 +434,28 @@ const getMe = asyncHandler(async (req, res) => {
   res.json({ success: true, user: req.user.toSafeObject() });
 });
 
+// @desc    Update logged-in user's profile (name, phone)
+// @route   PUT /api/auth/me
+// @access  Private
+const updateProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const { name, phone } = req.body;
+
+  if (name && name.trim()) user.name = name.trim();
+  if (phone !== undefined) {
+    // Allow empty string to clear the phone, otherwise sanitise
+    user.phone = phone.trim() || undefined;
+  }
+
+  await user.save();
+  res.json({ success: true, user: user.toSafeObject() });
+});
+
 module.exports = {
   register,
   login,
@@ -445,4 +467,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  updateProfile,
 };

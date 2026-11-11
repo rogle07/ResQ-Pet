@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Info,
   Layers,
+  Phone,
 } from 'lucide-react';
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -38,7 +39,8 @@ const PetProfile = () => {
   const [generatingTag, setGeneratingTag] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [showPhoneOnTag, setShowPhoneOnTag] = useState(false);
+  const [showPhoneOnTag, setShowPhoneOnTag] = useState(true);
+  const [contactPhone, setContactPhone] = useState('');
   const [enableCall, setEnableCall] = useState(true);
   const [enableWhatsApp, setEnableWhatsApp] = useState(true);
   const [showLocation, setShowLocation] = useState(false);
@@ -60,11 +62,12 @@ const PetProfile = () => {
       const data = await petApi.getById(id);
       setPet(data);
       if (data?.resqTag) {
-        setShowPhoneOnTag(!!data.resqTag.showPhone);
+        setShowPhoneOnTag(data.resqTag.showPhone !== false);
         setEnableCall(data.resqTag.enableCall !== false);
         setEnableWhatsApp(data.resqTag.enableWhatsApp !== false);
         setShowLocation(!!data.resqTag.showLocation);
         setCustomInstructions(data.resqTag.customInstructions || '');
+        setContactPhone(data.resqTag.contactPhone || (data.owner as unknown as { phone?: string })?.phone || '');
       }
     } catch {
       /* pet stays null → "not found" message shown */
@@ -166,6 +169,7 @@ const PetProfile = () => {
         enableCall,
         enableWhatsApp,
         showLocation,
+        contactPhone,
         customInstructions,
         regenerate: false,
       });
@@ -531,6 +535,24 @@ const PetProfile = () => {
               </h4>
 
               <div className="space-y-3 text-xs">
+                {/* Contact Phone Input */}
+                <div className="rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 p-3 border border-emerald-200 dark:border-emerald-800 space-y-1">
+                  <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-[#1e6f42] dark:text-emerald-400" />
+                    Pet Owner Contact Phone Number
+                  </label>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    This phone number will be displayed on the tag scan page and called when a finder taps "Call Pet Owner" or "WhatsApp Pet Owner".
+                  </p>
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full mt-1 p-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e6f42]"
+                  />
+                </div>
+
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -543,8 +565,7 @@ const PetProfile = () => {
                       Display phone number visibly on scan page
                     </span>
                     <span className="text-[11px] text-slate-500">
-                      When off, finders can still click "Call Owner" or "WhatsApp
-                      Owner" without your raw phone digits printed on the page.
+                      When enabled, finders see your exact phone digits directly on the page and can call or copy it easily.
                     </span>
                   </div>
                 </label>

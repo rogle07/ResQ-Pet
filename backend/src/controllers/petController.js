@@ -47,11 +47,12 @@ const createPet = asyncHandler(async (req, res) => {
   }
   pet.resqTag = {
     isActive: true,
-    showPhone: false,
+    showPhone: true,
     enableCall: true,
     enableWhatsApp: true,
     showLocation: false,
     showEmail: false,
+    contactPhone: req.user.phone || undefined,
     generatedAt: new Date(),
   };
 
@@ -116,11 +117,12 @@ const getPetById = asyncHandler(async (req, res) => {
   if (!pet.resqTag) {
     pet.resqTag = {
       isActive: true,
-      showPhone: false,
+      showPhone: true,
       enableCall: true,
       enableWhatsApp: true,
       showLocation: false,
       showEmail: false,
+      contactPhone: pet.owner?.phone || undefined,
       generatedAt: new Date(),
     };
     modified = true;
@@ -325,13 +327,15 @@ const getPublicTag = asyncHandler(async (req, res) => {
   }
 
   const owner = pet.owner || {};
-  const showPhone = !!pet.resqTag?.showPhone;
-  const enableCall = pet.resqTag?.enableCall !== false && !!owner.phone;
-  const enableWhatsApp = pet.resqTag?.enableWhatsApp !== false && !!owner.phone;
+  // Preferred phone order: explicit contactPhone on pet's tag -> owner's account phone
+  const rawPhone = (pet.resqTag?.contactPhone && pet.resqTag.contactPhone.trim()) || owner.phone || null;
+  const showPhone = pet.resqTag?.showPhone !== false;
+  const enableCall = pet.resqTag?.enableCall !== false && !!rawPhone;
+  const enableWhatsApp = pet.resqTag?.enableWhatsApp !== false && !!rawPhone;
 
   let cleanPhone = null;
-  if (owner.phone) {
-    cleanPhone = String(owner.phone).replace(/[^0-9+]/g, '');
+  if (rawPhone) {
+    cleanPhone = String(rawPhone).replace(/[^0-9+]/g, '');
   }
 
   // Last known location only if owner explicitly enabled public location sharing
@@ -364,12 +368,13 @@ const getPublicTag = asyncHandler(async (req, res) => {
       customInstructions: pet.resqTag?.customInstructions || null,
       owner: {
         name: owner.name || 'Pet Owner',
-        phone: showPhone ? owner.phone : null,
+        phone: rawPhone,
+        rawPhone: rawPhone,
         showPhone,
         enableCall,
         enableWhatsApp,
-        callUri: enableCall ? `tel:${cleanPhone}` : null,
-        whatsappUri: enableWhatsApp
+        callUri: enableCall && cleanPhone ? `tel:${cleanPhone}` : null,
+        whatsappUri: enableWhatsApp && cleanPhone
           ? `https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(
               `Hello ${owner.name || ''}, I found your pet "${pet.name}" (Tag: ${pet.tagId || pet.petId}) registered on ResQPet.`
             )}`
@@ -493,23 +498,34 @@ const generateResQTag = asyncHandler(async (req, res) => {
     throw new Error('Not authorized');
   }
 
-  const { showPhone, enableCall, enableWhatsApp, showLocation, customInstructions, regenerate } = req.body;
+  const { showPhone, enableCall, enableWhatsApp, showLocation, customInstructions, contactPhone, regenerate } = req.body;
 
   // Only regenerate tagId if explicitly requested
   if (regenerate || !pet.tagId) {
     pet.tagId = `RQP-${uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
   }
 
+  const effectiveContactPhone = contactPhone !== undefined
+    ? (contactPhone ? String(contactPhone).trim() : '')
+    : (pet.resqTag?.contactPhone || '');
+
   pet.resqTag = {
     isActive: true,
-    showPhone: showPhone !== undefined ? !!showPhone : (pet.resqTag?.showPhone ?? false),
+    showPhone: showPhone !== undefined ? !!showPhone : (pet.resqTag?.showPhone ?? true),
     enableCall: enableCall !== undefined ? !!enableCall : (pet.resqTag?.enableCall ?? true),
     enableWhatsApp: enableWhatsApp !== undefined ? !!enableWhatsApp : (pet.resqTag?.enableWhatsApp ?? true),
     showLocation: showLocation !== undefined ? !!showLocation : (pet.resqTag?.showLocation ?? false),
     showEmail: false,
+    contactPhone: effectiveContactPhone || undefined,
     customInstructions: customInstructions !== undefined ? customInstructions : (pet.resqTag?.customInstructions || ''),
     generatedAt: new Date(),
   };
+
+  // If owner entered a contact phone and their user profile has no phone or differs, sync to User profile too
+  if (effectiveContactPhone && req.user) {
+    const User = require('../models/User');
+    await User.findByIdAndUpdate(req.user._id, { phone: effectiveContactPhone });
+  }
 
   const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://res-q-pet-51cc.vercel.app';
   const scanUrl = `${clientBase}/pet/scan/${pet.tagId}`;

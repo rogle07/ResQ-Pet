@@ -319,20 +319,31 @@ export default function PublicPetTag() {
             </div>
 
             {/* Owner Info Block */}
-            <div className="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-4 border border-slate-200/70 dark:border-slate-700 text-center">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+            <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-900/80 dark:to-emerald-950/40 p-5 border-2 border-emerald-500/30 dark:border-emerald-700/40 text-center shadow-sm space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 block">
                 Pet Guardian / Owner
               </span>
-              <p className="font-bold text-base text-slate-800 dark:text-slate-100 mt-0.5">
+              <p className="font-extrabold text-xl text-slate-900 dark:text-white">
                 {pet.owner?.name || 'Registered Owner'}
               </p>
-              {pet.owner?.showPhone && pet.owner?.phone ? (
-                <p className="font-mono text-sm text-[#1e6f42] dark:text-emerald-400 font-bold mt-1">
-                  📞 {pet.owner.phone}
-                </p>
+              {pet.owner?.phone ? (
+                <div className="pt-1">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border-2 border-emerald-500/40 dark:border-emerald-600/40 shadow-sm">
+                    <Phone className="h-4 w-4 text-[#1e6f42] dark:text-emerald-400" />
+                    <a
+                      href={pet.owner.callUri || `tel:${pet.owner.phone}`}
+                      className="font-mono text-lg font-black text-emerald-700 dark:text-emerald-300 hover:underline"
+                    >
+                      {pet.owner.phone}
+                    </a>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                    Tap number or use the Call button below to dial directly
+                  </p>
+                </div>
               ) : (
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Verified Contact Available Below
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Owner has not set a direct phone number yet. You can still leave a message or send a found alert below.
                 </p>
               )}
             </div>
@@ -389,26 +400,31 @@ export default function PublicPetTag() {
             {/* ======================================================== */}
             <div className="space-y-3 pt-2">
               {/* Button 1: Call Owner */}
-              {pet.owner?.callUri ? (
+              {pet.owner?.callUri || pet.owner?.phone ? (
                 <a
-                  href={pet.owner.callUri}
-                  className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-lg shadow-emerald-900/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                  href={pet.owner.callUri || `tel:${String(pet.owner?.phone).replace(/[^0-9+]/g, '')}`}
+                  className="w-full flex items-center justify-center gap-3 py-4 px-5 rounded-2xl bg-[#1e6f42] hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-base shadow-lg shadow-emerald-900/30 transition-all"
                 >
-                  <Phone className="h-5 w-5" />
-                  Call Owner Now
+                  <Phone className="h-5 w-5 animate-pulse" />
+                  <span>Call Pet Owner {pet.owner?.phone ? `(${pet.owner.phone})` : ''}</span>
                 </a>
               ) : null}
 
               {/* Button 2: WhatsApp Owner */}
-              {pet.owner?.whatsappUri ? (
+              {pet.owner?.whatsappUri || pet.owner?.phone ? (
                 <a
-                  href={pet.owner.whatsappUri}
+                  href={
+                    pet.owner.whatsappUri ||
+                    `https://wa.me/${String(pet.owner?.phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                      `Hello ${pet.owner?.name || ''}, I found your pet "${pet.name}" (Tag: ${pet.tagId || pet.petId}) registered on ResQPet.`
+                    )}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm shadow-lg shadow-green-900/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                  className="w-full flex items-center justify-center gap-3 py-3.5 px-5 rounded-2xl bg-[#25D366] hover:bg-[#1EBE5D] active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-green-900/20 transition-all"
                 >
                   <MessageCircle className="h-5 w-5 fill-current" />
-                  WhatsApp Owner
+                  <span>WhatsApp Pet Owner</span>
                 </a>
               ) : null}
             </div>

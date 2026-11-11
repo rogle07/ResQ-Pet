@@ -65,6 +65,7 @@ export const petApi = {
       enableCall?: boolean;
       enableWhatsApp?: boolean;
       showLocation?: boolean;
+      contactPhone?: string;
       customInstructions?: string;
       regenerate?: boolean;
     } = {}

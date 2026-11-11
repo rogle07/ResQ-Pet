@@ -82,6 +82,7 @@ export interface Pet {
     enableWhatsApp?: boolean;
     showLocation?: boolean;
     showEmail?: boolean;
+    contactPhone?: string;
     customInstructions?: string;
     generatedAt?: string;
   };

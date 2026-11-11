@@ -14,6 +14,7 @@ const {
   forgotPassword,
   resetPassword,
   getMe,
+  updateProfile,
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -71,5 +72,6 @@ router.post(
 );
 
 router.get('/me', protect, getMe);
+router.put('/me', protect, updateProfile);
 
 module.exports = router;

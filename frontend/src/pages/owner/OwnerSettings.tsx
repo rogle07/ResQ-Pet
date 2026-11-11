@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useAppSelector } from '@/app/hooks';
+import { useAppSelector, useAppDispatch } from '@/app/hooks';
+import { updateUser } from '@/features/auth/authSlice';
+import { authApi } from '@/features/auth/authApi';
 import {
   User,
   Bell,
@@ -12,14 +14,15 @@ import {
 
 const OwnerSettings = () => {
   const currentUser = useAppSelector((s) => s.auth.user);
+  const dispatch = useAppDispatch();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'preferences'>('profile');
   const [successToast, setSuccessToast] = useState('');
 
   // Profile Form state
-  const [name, setName] = useState(currentUser?.name || 'Suraj Kumar');
-  const [email, setEmail] = useState(currentUser?.email || 'owner@resqpet.app');
-  const [phone, setPhone] = useState(currentUser?.phone || '+91 98765 43210');
+  const [name, setName] = useState(currentUser?.name || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [city, setCity] = useState('Noida');
   const [state, setState] = useState('Uttar Pradesh');
   const [avatar, setAvatar] = useState(currentUser?.avatar || '/diksha-avatar.jpg');
@@ -45,14 +48,21 @@ const OwnerSettings = () => {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
+    try {
+      const res = await authApi.updateProfile({ name, phone });
+      // Update Redux so phone is available immediately across the app
+      dispatch(updateUser({ name: res.user.name, phone: res.user.phone }));
+      setSuccessToast('Profile saved! Your phone number is now linked to your pet QR tags.');
+      setTimeout(() => setSuccessToast(''), 5000);
+    } catch {
+      setSuccessToast('');
+      alert('Could not save profile. Please check your connection and try again.');
+    } finally {
       setIsSaving(false);
-      setSuccessToast('Profile details updated successfully!');
-      setTimeout(() => setSuccessToast(''), 4000);
-    }, 600);
+    }
   };
 
   const handleUpdatePassword = (e: React.FormEvent) => {

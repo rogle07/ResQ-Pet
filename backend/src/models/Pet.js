@@ -19,11 +19,12 @@ const petSchema = new mongoose.Schema(
     tagId: { type: String, unique: true, sparse: true, index: true },
     resqTag: {
       isActive: { type: Boolean, default: true },
-      showPhone: { type: Boolean, default: false },
+      showPhone: { type: Boolean, default: true },
       enableCall: { type: Boolean, default: true },
       enableWhatsApp: { type: Boolean, default: true },
       showLocation: { type: Boolean, default: false },
       showEmail: { type: Boolean, default: false },
+      contactPhone: { type: String, trim: true },
       customInstructions: { type: String, trim: true },
       generatedAt: { type: Date, default: Date.now },
     },

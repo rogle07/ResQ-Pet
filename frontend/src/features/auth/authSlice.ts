@@ -36,8 +36,13 @@ const authSlice = createSlice({
         localStorage.removeItem('resqpet_auth_user');
       } catch { /* ignore */ }
     },
+    updateUser: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
   },
 });
 
-export const { setCredentials, setAccessToken, setUnauthenticated, logout } = authSlice.actions;
+export const { setCredentials, setAccessToken, setUnauthenticated, logout, updateUser } = authSlice.actions;
 export default authSlice.reducer;
