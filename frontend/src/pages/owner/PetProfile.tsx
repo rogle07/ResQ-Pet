@@ -47,6 +47,10 @@ const PetProfile = () => {
   const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Live QR PNG/SVG - must be declared here (top-level), guard goes inside useEffect
+  const [liveQrPng, setLiveQrPng] = useState('');
+  const [liveQrSvg, setLiveQrSvg] = useState('');
+
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -69,6 +73,31 @@ const PetProfile = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // QR generation – guard is INSIDE the effect, not before the hook declaration
+  useEffect(() => {
+    if (!pet) return;
+    const tId = pet.tagId || pet.petId;
+    const tUrl = `${window.location.origin}/pet/scan/${tId}`;
+
+    QRCode.toDataURL(tUrl, {
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      width: 600,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((dataUrl) => setLiveQrPng(dataUrl))
+      .catch((err) => console.error('Client QR PNG error:', err));
+
+    QRCode.toString(tUrl, {
+      type: 'svg',
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((svgStr) => setLiveQrSvg(svgStr))
+      .catch((err) => console.error('Client QR SVG error:', err));
+  }, [pet]);
 
   if (loading) return <LoadingScreen />;
   if (!pet) return <p className="text-sm text-ink/60">Pet not found.</p>;
@@ -169,31 +198,6 @@ const PetProfile = () => {
 
   const tagId = pet.tagId || pet.petId;
   const tagUrl = `${window.location.origin}/pet/scan/${tagId}`;
-
-  // Client-side dynamic QR generation: guarantees QR image encodes the exact tagUrl displayed
-  const [liveQrPng, setLiveQrPng] = useState<string>(pet.qrCode || '');
-  const [liveQrSvg, setLiveQrSvg] = useState<string>(pet.qrCodeSvg || '');
-
-  useEffect(() => {
-    if (!tagUrl) return;
-    QRCode.toDataURL(tagUrl, {
-      errorCorrectionLevel: 'H',
-      margin: 2,
-      width: 600,
-      color: { dark: '#000000', light: '#ffffff' },
-    })
-      .then((dataUrl) => setLiveQrPng(dataUrl))
-      .catch((err) => console.error('Client QR PNG error:', err));
-
-    QRCode.toString(tagUrl, {
-      type: 'svg',
-      errorCorrectionLevel: 'H',
-      margin: 2,
-      color: { dark: '#000000', light: '#ffffff' },
-    })
-      .then((svgStr) => setLiveQrSvg(svgStr))
-      .catch((err) => console.error('Client QR SVG error:', err));
-  }, [tagUrl]);
 
   const qrImagePng = liveQrPng || pet.qrCode || '';
   const qrImageSvg = liveQrSvg || pet.qrCodeSvg || '';
