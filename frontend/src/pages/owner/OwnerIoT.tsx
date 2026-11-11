@@ -1,11 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { petApi } from '@/features/pets/petApi';
 import { iotApi, type IoTDeviceData, type SensorReadingData } from '@/features/iot/iotApi';
+import { getSocket } from '@/hooks/useSocket';
 import type { Pet } from '@/types';
 import Modal from '@/components/ui/Modal';
-import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// Re-centers the Leaflet map whenever the GPS coordinates change
+function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], map.getZoom(), { animate: true });
+  }, [lat, lng, map]);
+  return null;
+}
 import {
   LineChart,
   Line,
@@ -163,6 +173,57 @@ export default function OwnerIoT() {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, [liveSyncActive, selectedPetId]);
+
+  // Socket.IO real-time sensor updates (immediate push from backend)
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !selectedPetId) return;
+
+    const handleSensorUpdate = (payload: {
+      petId: string;
+      deviceId: string;
+      reading: SensorReadingData;
+      lastValidGps: IoTDeviceData['lastValidGps'];
+      connectionStatus: string;
+    }) => {
+      // Only update state if the event is for the currently selected pet
+      if (payload.petId?.toString() !== selectedPetId) return;
+      setLatestReading(payload.reading);
+      if (payload.lastValidGps) {
+        setLastValidGps(payload.lastValidGps);
+      }
+      setCurrentDevice((prev) =>
+        prev ? { ...prev, connectionStatus: 'online', lastCommunicationAt: new Date().toISOString() } : prev
+      );
+    };
+
+    const handleGpsUpdate = (payload: {
+      petId: string;
+      lat: number;
+      lng: number;
+      speedKmh: number | null;
+      temperatureC: number | null;
+      recordedAt: string;
+    }) => {
+      if (payload.petId?.toString() !== selectedPetId) return;
+      // Update lastValidGps immediately so the map re-centers
+      setLastValidGps((prev) => ({
+        ...(prev || {}),
+        latitude: payload.lat,
+        longitude: payload.lng,
+        speed: payload.speedKmh,
+        recordedAt: payload.recordedAt,
+      }));
+    };
+
+    socket.on('iot:sensor-update', handleSensorUpdate);
+    socket.on('gps:update', handleGpsUpdate);
+
+    return () => {
+      socket.off('iot:sensor-update', handleSensorUpdate);
+      socket.off('gps:update', handleGpsUpdate);
+    };
+  }, [selectedPetId]);
 
   const selectedPet = pets.find((p) => p._id === selectedPetId);
 
@@ -753,6 +814,7 @@ export default function OwnerIoT() {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
+                  <MapRecenter lat={latestReading.gps.latitude} lng={latestReading.gps.longitude} />
                   <Marker
                     position={[latestReading.gps.latitude, latestReading.gps.longitude]}
                     icon={createPetMapIcon(selectedPet?.name || 'Pet')}
@@ -782,6 +844,54 @@ export default function OwnerIoT() {
                   </div>
                 </div>
               </div>
+            ) : lastValidGps?.latitude && lastValidGps?.longitude ? (
+              /* Fallback: show last known valid GPS location on map */
+              <div className="relative rounded-2xl overflow-hidden border border-amber-200 dark:border-amber-800 h-[400px]">
+                <MapContainer
+                  center={[lastValidGps.latitude, lastValidGps.longitude]}
+                  zoom={16}
+                  scrollWheelZoom={false}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <MapRecenter lat={lastValidGps.latitude} lng={lastValidGps.longitude} />
+                  <Marker
+                    position={[lastValidGps.latitude, lastValidGps.longitude]}
+                    icon={createPetMapIcon(selectedPet?.name || 'Pet')}
+                  />
+                  {selectedPet?.safeZone?.enabled && selectedPet.safeZone.center && (
+                    <Circle
+                      center={[selectedPet.safeZone.center.lat, selectedPet.safeZone.center.lng]}
+                      radius={selectedPet.safeZone.radiusMeters || 200}
+                      pathOptions={{ color: '#1e6f42', fillColor: '#1e6f42', fillOpacity: 0.15 }}
+                    />
+                  )}
+                </MapContainer>
+
+                <div className="absolute top-4 right-4 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm p-3 rounded-xl border border-amber-200 dark:border-amber-700 shadow-md text-xs space-y-1">
+                  <div className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <Navigation className="h-3.5 w-3.5 text-amber-600" />
+                    Last Known Location
+                  </div>
+                  <div className="text-slate-500 font-mono">
+                    Lat: {lastValidGps.latitude.toFixed(6)}
+                  </div>
+                  <div className="text-slate-500 font-mono">
+                    Lng: {lastValidGps.longitude.toFixed(6)}
+                  </div>
+                  <div className="text-amber-600 dark:text-amber-400 text-[10px]">
+                    GPS searching – showing last fix
+                  </div>
+                  {lastValidGps.recordedAt && (
+                    <div className="text-slate-400 text-[10px]">
+                      Recorded: {new Date(lastValidGps.recordedAt).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-8 text-center space-y-4">
                 <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 mx-auto flex items-center justify-center animate-pulse">
@@ -800,24 +910,6 @@ export default function OwnerIoT() {
                     Active Satellites in View: <strong>{latestReading?.gps?.satellites ?? 0}</strong>
                   </div>
                 </div>
-
-                {/* Show last valid GPS coordinates if recorded earlier */}
-                {lastValidGps?.latitude && lastValidGps?.longitude && (
-                  <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 max-w-sm mx-auto text-left bg-white dark:bg-slate-800 p-3.5 rounded-xl border">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Last Valid Satellite Fix
-                    </span>
-                    <p className="font-mono text-xs font-bold text-slate-800 dark:text-white mt-1">
-                      {lastValidGps.latitude.toFixed(6)}, {lastValidGps.longitude.toFixed(6)}
-                    </p>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 block">
-                      Recorded:{' '}
-                      {lastValidGps.recordedAt
-                        ? new Date(lastValidGps.recordedAt).toLocaleString()
-                        : 'Previous session'}
-                    </span>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1070,7 +1162,7 @@ export default function OwnerIoT() {
             <p className="text-xs text-slate-600 dark:text-slate-400">
               The firmware communicates via HTTPS POST directly to our deployed cloud backend at{' '}
               <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 font-mono text-emerald-600 font-bold">
-                https://resq-pet.onrender.com/api/iot/device-data
+                https://resq-pet-1.onrender.com/api/iot/device-data
               </code>
             </p>
 
@@ -1131,7 +1223,7 @@ export default function OwnerIoT() {
 #define WIFI_PASSWORD "Your_WiFi_Password"
 
 // ==== BACKEND URL (HTTPS) ====
-#define BACKEND_URL "https://resq-pet.onrender.com/api/iot/device-data"
+#define BACKEND_URL "https://resq-pet-1.onrender.com/api/iot/device-data"
 
 // ==== TIMING ====
 #define PUBLISH_INTERVAL_MS 10000UL   // 10 seconds between sensor transmissions
