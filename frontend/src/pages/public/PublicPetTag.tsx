@@ -48,8 +48,8 @@ interface PublicPetProfile {
 }
 
 export default function PublicPetTag() {
-  const { tagId, publicPetId, id } = useParams<{ tagId?: string; publicPetId?: string; id?: string }>();
-  const scanIdentifier = publicPetId || tagId || id;
+  const { tagId, publicPetId, petId, id } = useParams<{ tagId?: string; publicPetId?: string; petId?: string; id?: string }>();
+  const scanIdentifier = publicPetId || tagId || petId || id;
 
   const [pet, setPet] = useState<PublicPetProfile | null>(null);
   const [loading, setLoading] = useState(true);

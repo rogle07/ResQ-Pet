@@ -125,17 +125,18 @@ const getPetById = asyncHandler(async (req, res) => {
     };
     modified = true;
   }
-  if (!pet.qrCode || !pet.qrCodeSvg) {
-    try {
-      const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://res-q-pet-51cc.vercel.app';
-      const scanUrl = `${clientBase}/pet/scan/${pet.tagId}`;
-      const { qrCode, qrCodeSvg } = await generateQrData(scanUrl);
+  // Ensure QR code encodes the exact modern scanUrl
+  try {
+    const clientBase = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'https://res-q-pet-51cc.vercel.app';
+    const scanUrl = `${clientBase}/pet/scan/${pet.tagId}`;
+    const { qrCode, qrCodeSvg } = await generateQrData(scanUrl);
+    if (!pet.qrCode || !pet.qrCodeSvg || pet.qrCode !== qrCode) {
       pet.qrCode = qrCode;
       pet.qrCodeSvg = qrCodeSvg;
       modified = true;
-    } catch (qrErr) {
-      console.error('QR generation fallback error:', qrErr.message);
     }
+  } catch (qrErr) {
+    console.error('QR generation fallback error:', qrErr.message);
   }
 
   if (modified) {
@@ -148,26 +149,8 @@ const getPetById = asyncHandler(async (req, res) => {
 // @desc    Get a pet's public profile (no auth) - used by QR code scan
 // @route   GET /api/pets/public/:petId
 // @access  Public
-const getPublicPetProfile = asyncHandler(async (req, res) => {
-  const pet = await Pet.findOne({ petId: req.params.petId }).populate('owner', 'name phone');
-
-  if (!pet) {
-    res.status(404);
-    throw new Error('Pet not found');
-  }
-
-  res.json({
-    success: true,
-    pet: {
-      petId: pet.petId,
-      name: pet.name,
-      species: pet.species,
-      breed: pet.breed,
-      images: pet.images,
-      status: pet.status,
-      ownerContact: { name: pet.owner.name, phone: pet.owner.phone },
-    },
-  });
+const getPublicPetProfile = asyncHandler(async (req, res, next) => {
+  return getPublicTag(req, res, next);
 });
 
 // @desc    Update pet profile
@@ -320,7 +303,7 @@ const markPetSafe = asyncHandler(async (req, res) => {
 // @route   GET /api/pets/public-tag/:tagId or /api/pets/scan/:tagId
 // @access  Public
 const getPublicTag = asyncHandler(async (req, res) => {
-  const identifier = req.params.tagId || req.params.publicPetId || req.params.id;
+  const identifier = req.params.tagId || req.params.publicPetId || req.params.petId || req.params.id;
 
   const query = {
     $or: [

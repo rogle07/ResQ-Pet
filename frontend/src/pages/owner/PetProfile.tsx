@@ -178,8 +178,6 @@ const PetProfile = () => {
     if (!tagUrl) return;
     QRCode.toDataURL(tagUrl, {
       errorCorrectionLevel: 'H',
-      type: 'image/png',
-      quality: 1.0,
       margin: 2,
       width: 600,
       color: { dark: '#000000', light: '#ffffff' },

@@ -284,6 +284,8 @@ function App() {
           <Route path="/pet/:id/tag" element={<PublicPetTag />} />
           <Route path="/pet/scan/:publicPetId" element={<PublicPetTag />} />
           <Route path="/scan/:publicPetId" element={<PublicPetTag />} />
+          <Route path="/pets/public/:publicPetId" element={<PublicPetTag />} />
+          <Route path="/pet/public/:publicPetId" element={<PublicPetTag />} />
 
           {/* Lost Pet Role Dashboard */}
           <Route element={<ProtectedRoute allowedRoles={['lost_pet', 'admin']} />}>
