@@ -389,3 +389,4 @@ The repository includes administrative backend scripts under `backend/scripts/`:
    * *Status:* The frontend contains a demo fallback for offline evaluation. Production deployment should strictly restrict this fallback to verifiable network disconnects.
 5. **Firmware Deep-Sleep Power Optimization:**
    * *Status:* Firmware currently runs continuously on a 10-second delay. For battery-powered operation on a compact LiPo (e.g. 500 mAh), ESP32-C3 light-sleep / timer deep-sleep should be integrated between telemetry bursts.
+
