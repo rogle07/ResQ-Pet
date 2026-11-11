@@ -21,9 +21,12 @@ import {
   Layers,
 } from 'lucide-react';
 
+// ─── Component ────────────────────────────────────────────────────────────────
 const PetProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // ── Core state ──────────────────────────────────────────────────────────────
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -31,26 +34,25 @@ const PetProfile = () => {
   const [photoError, setPhotoError] = useState('');
   const [vaccineName, setVaccineName] = useState('');
 
-  // ResQTag Privacy & Settings States
+  // ── ResQTag states (ALL before any early return) ─────────────────────────
   const [generatingTag, setGeneratingTag] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-
   const [showPhoneOnTag, setShowPhoneOnTag] = useState(false);
   const [enableCall, setEnableCall] = useState(true);
   const [enableWhatsApp, setEnableWhatsApp] = useState(true);
   const [showLocation, setShowLocation] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('');
 
-  // Modals
+  // ── Modal state ──────────────────────────────────────────────────────────
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Live QR PNG/SVG - must be declared here (top-level), guard goes inside useEffect
+  // ── QR PNG (browser-safe; SVG via toString() is Node-only so we skip it) ─
   const [liveQrPng, setLiveQrPng] = useState('');
-  const [liveQrSvg, setLiveQrSvg] = useState('');
 
+  // ── Load pet data ─────────────────────────────────────────────────────────
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -64,22 +66,25 @@ const PetProfile = () => {
         setShowLocation(!!data.resqTag.showLocation);
         setCustomInstructions(data.resqTag.customInstructions || '');
       }
+    } catch {
+      /* pet stays null → "not found" message shown */
     } finally {
       setLoading(false);
     }
   };
 
+  // Load on mount / id change
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // QR generation – guard is INSIDE the effect, not before the hook declaration
+  // Generate QR PNG whenever pet changes (guard is INSIDE, not outside)
   useEffect(() => {
     if (!pet) return;
     const tId = pet.tagId || pet.petId;
+    if (!tId) return;
     const tUrl = `${window.location.origin}/pet/scan/${tId}`;
-
     QRCode.toDataURL(tUrl, {
       errorCorrectionLevel: 'H',
       margin: 2,
@@ -87,26 +92,27 @@ const PetProfile = () => {
       color: { dark: '#000000', light: '#ffffff' },
     })
       .then((dataUrl) => setLiveQrPng(dataUrl))
-      .catch((err) => console.error('Client QR PNG error:', err));
-
-    QRCode.toString(tUrl, {
-      type: 'svg',
-      errorCorrectionLevel: 'H',
-      margin: 2,
-      color: { dark: '#000000', light: '#ffffff' },
-    })
-      .then((svgStr) => setLiveQrSvg(svgStr))
-      .catch((err) => console.error('Client QR SVG error:', err));
+      .catch((err) => console.error('QR generation error:', err));
   }, [pet]);
 
+  // ── Early returns AFTER all hooks ─────────────────────────────────────────
   if (loading) return <LoadingScreen />;
-  if (!pet) return <p className="text-sm text-ink/60">Pet not found.</p>;
+  if (!pet) return <p className="p-8 text-sm text-ink/60">Pet not found.</p>;
 
+  // ── Derived values (not hooks) ────────────────────────────────────────────
+  const tagId  = pet.tagId || pet.petId;
+  const tagUrl = `${window.location.origin}/pet/scan/${tagId}`;
+  const qrImage = liveQrPng || pet.qrCode || '';
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const toggleLost = async () => {
     if (!id) return;
     setActionLoading(true);
     try {
-      const updated = pet.status === 'lost' ? await petApi.markSafe(id) : await petApi.markLost(id);
+      const updated =
+        pet.status === 'lost'
+          ? await petApi.markSafe(id)
+          : await petApi.markLost(id);
       setPet(updated);
     } finally {
       setActionLoading(false);
@@ -115,7 +121,10 @@ const PetProfile = () => {
 
   const addVaccination = async () => {
     if (!id || !vaccineName.trim()) return;
-    await petApi.addVaccination(id, { name: vaccineName.trim(), dateGiven: new Date().toISOString() });
+    await petApi.addVaccination(id, {
+      name: vaccineName.trim(),
+      dateGiven: new Date().toISOString(),
+    });
     setVaccineName('');
     load();
   };
@@ -131,22 +140,23 @@ const PetProfile = () => {
     if (!id) return;
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-
     setPhotoError('');
     setPhotoUploading(true);
     try {
       const updated = await petApi.update(id, { images: files });
       setPet(updated);
     } catch (err) {
-      const apiError = (err as { response?: { data?: { message?: string } } }).response?.data;
-      setPhotoError(apiError?.message || 'Could not upload the photo. Please try again.');
+      const apiError = (err as { response?: { data?: { message?: string } } })
+        .response?.data;
+      setPhotoError(
+        apiError?.message || 'Could not upload the photo. Please try again.',
+      );
     } finally {
       setPhotoUploading(false);
       e.target.value = '';
     }
   };
 
-  // Save / Update Tag Settings without changing permanent tagId
   const handleSaveTagSettings = async () => {
     if (!id) return;
     setSavingSettings(true);
@@ -159,9 +169,7 @@ const PetProfile = () => {
         customInstructions,
         regenerate: false,
       });
-      if (res?.pet) {
-        setPet(res.pet);
-      }
+      if (res?.pet) setPet(res.pet);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
@@ -171,7 +179,6 @@ const PetProfile = () => {
     }
   };
 
-  // Regenerate Tag ID (only when explicitly requested)
   const handleRegenerateTag = async () => {
     if (!id) return;
     setGeneratingTag(true);
@@ -184,11 +191,11 @@ const PetProfile = () => {
         customInstructions,
         regenerate: true,
       });
-      if (res?.pet) {
-        setPet(res.pet);
-      }
+      if (res?.pet) setPet(res.pet);
       setRegenerateConfirmOpen(false);
-      alert('New unique QR tag generated successfully. Remember to re-print your collar tag.');
+      alert(
+        'New unique QR tag generated successfully. Remember to re-print your collar tag.',
+      );
     } catch {
       alert('Could not regenerate QR Tag. Please check your connection.');
     } finally {
@@ -196,57 +203,69 @@ const PetProfile = () => {
     }
   };
 
-  const tagId = pet.tagId || pet.petId;
-  const tagUrl = `${window.location.origin}/pet/scan/${tagId}`;
-
-  const qrImagePng = liveQrPng || pet.qrCode || '';
-  const qrImageSvg = liveQrSvg || pet.qrCodeSvg || '';
-
-  // Download QR Code PNG (600x600 High Resolution)
   const handleDownloadPng = () => {
-    if (!qrImagePng) return;
+    if (!qrImage) return;
     const link = document.createElement('a');
-    link.href = qrImagePng;
+    link.href = qrImage;
     link.download = `${pet.name.replace(/\s+/g, '_')}_ResQPet_Tag_QR.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Download QR Code Vector SVG
-  const handleDownloadSvg = () => {
-    if (!qrImageSvg) {
+  // SVG download: generate a fresh SVG string using canvas fallback approach
+  const handleDownloadSvg = async () => {
+    try {
+      // Build a minimal SVG wrapper around the PNG data-URL
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 300;
+      await QRCode.toCanvas(canvas, tagUrl, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 300,
+        color: { dark: '#000000', light: '#ffffff' },
+      });
+      const pngData = canvas.toDataURL('image/png');
+      const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="300"><image href="${pngData}" width="300" height="300"/></svg>`;
+      const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${pet.name.replace(/\s+/g, '_')}_ResQPet_Tag_Vector.svg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Fallback to PNG download
       handleDownloadPng();
-      return;
     }
-    const blob = new Blob([qrImageSvg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${pet.name.replace(/\s+/g, '_')}_ResQPet_Tag_Vector.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
-  // Trigger Print Dialog
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Link to="/owner/pets" className="inline-block text-sm text-moss-600 dark:text-moss-400 hover:underline">
+      <Link
+        to="/owner/pets"
+        className="inline-block text-sm text-moss-600 dark:text-moss-400 hover:underline"
+      >
         ← Back to My Pets
       </Link>
 
-      {/* Main Profile Card */}
+      {/* ── Main Profile Card ─────────────────────────────────────────────── */}
       <div className="card">
         <div className="flex flex-col gap-6 sm:flex-row">
+          {/* Photo */}
           <div className="h-44 w-44 shrink-0 overflow-hidden rounded-2xl bg-moss-100 dark:bg-moss-700/30 shadow-sm border border-slate-200 dark:border-slate-700">
             {pet.images?.[0]?.url ? (
-              <img src={pet.images[0].url} alt={pet.name} className="h-full w-full object-cover" />
+              <img
+                src={pet.images[0].url}
+                alt={pet.name}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center font-display text-4xl text-moss-500 dark:text-moss-400">
                 {pet.name.charAt(0).toUpperCase()}
@@ -254,25 +273,43 @@ const PetProfile = () => {
             )}
           </div>
 
+          {/* Info */}
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="font-display text-2xl font-black text-slate-900 dark:text-white">{pet.name}</h1>
+                <h1 className="font-display text-2xl font-black text-slate-900 dark:text-white">
+                  {pet.name}
+                </h1>
                 <p className="text-sm capitalize text-slate-500 dark:text-slate-400 mt-0.5">
-                  {pet.breed || pet.species} · {pet.gender} {pet.age ? `· ${pet.age}y` : ''}
+                  {pet.breed || pet.species} · {pet.gender}{' '}
+                  {pet.age ? `· ${pet.age}y` : ''}
                 </p>
               </div>
               <SignalIndicator status={petStatusToSignal(pet.status)}>
-                <span className="text-sm font-semibold">{petStatusLabel[pet.status]}</span>
+                <span className="text-sm font-semibold">
+                  {petStatusLabel[pet.status]}
+                </span>
               </SignalIndicator>
             </div>
 
             <div className="mt-3">
               <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-[#1e6f42] dark:text-emerald-400 hover:underline">
-                {photoUploading ? 'Uploading…' : pet.images?.length ? 'Change photo' : '+ Add a photo'}
-                <input type="file" accept="image/*" className="hidden" onChange={uploadPhoto} disabled={photoUploading} />
+                {photoUploading
+                  ? 'Uploading…'
+                  : pet.images?.length
+                    ? 'Change photo'
+                    : '+ Add a photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={uploadPhoto}
+                  disabled={photoUploading}
+                />
               </label>
-              {photoError && <p className="mt-1 text-xs text-coral-500">{photoError}</p>}
+              {photoError && (
+                <p className="mt-1 text-xs text-coral-500">{photoError}</p>
+              )}
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -283,15 +320,27 @@ const PetProfile = () => {
                 </span>
               )}
               {pet.collar?.isActive && (
-                <span className="pet-tag">🔋 {pet.collar.lastBatteryPercent ?? '—'}%</span>
+                <span className="pet-tag">
+                  🔋 {pet.collar.lastBatteryPercent ?? '—'}%
+                </span>
               )}
               {pet.color && <span className="pet-tag">{pet.color}</span>}
-              {pet.weightKg && <span className="pet-tag">{pet.weightKg} kg</span>}
+              {pet.weightKg && (
+                <span className="pet-tag">{pet.weightKg} kg</span>
+              )}
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={toggleLost} disabled={actionLoading} className={pet.status === 'lost' ? 'btn-primary' : 'btn-danger'}>
-                {actionLoading ? 'Updating…' : pet.status === 'lost' ? 'Mark as safe' : 'Mark as lost'}
+              <button
+                onClick={toggleLost}
+                disabled={actionLoading}
+                className={pet.status === 'lost' ? 'btn-primary' : 'btn-danger'}
+              >
+                {actionLoading
+                  ? 'Updating…'
+                  : pet.status === 'lost'
+                    ? 'Mark as safe'
+                    : 'Mark as lost'}
               </button>
               <Link
                 to="/owner/iot"
@@ -300,7 +349,10 @@ const PetProfile = () => {
               >
                 📍 Get Pet Location
               </Link>
-              <button onClick={deletePet} className="btn-secondary text-coral-600 dark:text-coral-400">
+              <button
+                onClick={deletePet}
+                className="btn-secondary text-coral-600 dark:text-coral-400"
+              >
                 Remove profile
               </button>
             </div>
@@ -308,11 +360,9 @@ const PetProfile = () => {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* SMART PET QR IDENTIFICATION & RECOVERY SUITE            */}
-      {/* ======================================================== */}
+      {/* ── Smart Pet QR Identification & Recovery Suite ──────────────────── */}
       <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6 overflow-hidden space-y-6">
-        {/* Header Bar */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-[#1e6f42] to-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-900/20">
@@ -321,14 +371,16 @@ const PetProfile = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                  Collar QR Identification & Recovery
+                  Collar QR Identification &amp; Recovery
                 </h2>
                 <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 px-2 py-0.5 rounded-full">
                   <ShieldCheck className="h-3.5 w-3.5" /> Permanent QR
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Attach this QR code to {pet.name}'s 3D-printed collar. Anyone scanning with Google Lens or camera is redirected to {pet.name}'s recovery profile.
+                Attach this QR code to {pet.name}&apos;s 3D-printed collar.
+                Anyone scanning with Google Lens or camera is redirected to{' '}
+                {pet.name}&apos;s recovery profile.
               </p>
             </div>
           </div>
@@ -350,41 +402,46 @@ const PetProfile = () => {
         <div className="rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60 p-4 flex items-start gap-3">
           <Info className="h-5 w-5 text-[#1e6f42] shrink-0 mt-0.5" />
           <div className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed">
-            <strong>Permanent QR Code Guarantee:</strong> This QR code encodes a permanent ResQPet redirect URL. If you update your phone number, home address, or pet details in the future, the physical collar tag will continue working without reprinting.
+            <strong>Permanent QR Code Guarantee:</strong> This QR code encodes a
+            permanent ResQPet redirect URL. If you update your phone number, home
+            address, or pet details in the future, the physical collar tag will
+            continue working without reprinting.
           </div>
         </div>
 
-        {/* Main Grid: QR Tag Preview & Download Options */}
+        {/* QR Preview + Download Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-          {/* Left: 3D Collar Tag Preview Card */}
+          {/* Left: 3D Collar Tag Preview */}
           <div className="md:col-span-5 flex flex-col items-center justify-center">
             <div className="w-full max-w-[270px] bg-slate-900 text-white p-5 rounded-3xl border-2 border-emerald-500/40 shadow-xl flex flex-col items-center text-center relative overflow-hidden">
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-[#1e6f42]" />
 
-              {/* Collar Mount Strap Notch Indicator */}
               <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-2">
                 <Layers className="h-3.5 w-3.5" />
                 <span>3D Collar Insert Layout</span>
               </div>
 
-              {/* High-Contrast QR */}
               <div className="bg-white p-3 rounded-2xl shadow-inner border border-slate-700">
-                {qrImagePng ? (
+                {qrImage ? (
                   <img
-                    src={qrImagePng}
+                    src={qrImage}
                     alt={`${pet.name} Collar QR`}
                     className="h-44 w-44 object-contain"
                   />
                 ) : (
                   <div className="h-44 w-44 flex items-center justify-center text-slate-400 text-xs">
-                    Generating QR...
+                    Generating QR…
                   </div>
                 )}
               </div>
 
               <div className="mt-3 space-y-0.5">
-                <p className="font-black text-base tracking-wide text-white">{pet.name}</p>
-                <p className="text-[11px] text-slate-400 font-mono">TAG ID: {tagId}</p>
+                <p className="font-black text-base tracking-wide text-white">
+                  {pet.name}
+                </p>
+                <p className="text-[11px] text-slate-400 font-mono">
+                  TAG ID: {tagId}
+                </p>
                 <p className="text-[10px] text-emerald-400 font-semibold pt-1">
                   Scan with Camera or Google Lens
                 </p>
@@ -392,8 +449,9 @@ const PetProfile = () => {
             </div>
           </div>
 
-          {/* Right: Actions, Formats & Live Link */}
+          {/* Right: Actions */}
           <div className="md:col-span-7 space-y-4">
+            {/* Scan URL */}
             <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-4 border border-slate-200/70 dark:border-slate-700 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -423,12 +481,11 @@ const PetProfile = () => {
               </div>
             </div>
 
-            {/* Download Formats Grid */}
+            {/* Download Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {/* PNG Download */}
               <button
                 onClick={handleDownloadPng}
-                disabled={!qrImagePng}
+                disabled={!qrImage}
                 className="flex items-center justify-center gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition text-slate-800 dark:text-slate-100 disabled:opacity-50"
               >
                 <Download className="h-4 w-4 text-[#1e6f42]" />
@@ -438,10 +495,9 @@ const PetProfile = () => {
                 </div>
               </button>
 
-              {/* SVG Download */}
               <button
                 onClick={handleDownloadSvg}
-                disabled={!qrImageSvg}
+                disabled={!qrImage}
                 className="flex items-center justify-center gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition text-slate-800 dark:text-slate-100 disabled:opacity-50"
               >
                 <FileCode className="h-4 w-4 text-purple-600" />
@@ -451,7 +507,6 @@ const PetProfile = () => {
                 </div>
               </button>
 
-              {/* Print Layout */}
               <button
                 onClick={() => setPrintModalOpen(true)}
                 className="flex items-center justify-center gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition text-slate-800 dark:text-slate-100"
@@ -464,10 +519,10 @@ const PetProfile = () => {
               </button>
             </div>
 
-            {/* Privacy & Finder Settings Box */}
+            {/* Privacy & Finder Settings */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
               <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center justify-between">
-                <span>Finder Contact & Privacy Settings</span>
+                <span>Finder Contact &amp; Privacy Settings</span>
                 {saveSuccess && (
                   <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
                     <Check className="h-3.5 w-3.5" /> Saved
@@ -476,7 +531,6 @@ const PetProfile = () => {
               </h4>
 
               <div className="space-y-3 text-xs">
-                {/* Setting 1: Visible Phone Number vs Button-Only */}
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -489,12 +543,12 @@ const PetProfile = () => {
                       Display phone number visibly on scan page
                     </span>
                     <span className="text-[11px] text-slate-500">
-                      When off, finders can still click "Call Owner" or "WhatsApp Owner" without your raw phone digits printed on the page.
+                      When off, finders can still click "Call Owner" or "WhatsApp
+                      Owner" without your raw phone digits printed on the page.
                     </span>
                   </div>
                 </label>
 
-                {/* Setting 2: Direct Phone Call */}
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -507,12 +561,12 @@ const PetProfile = () => {
                       Enable "Call Owner" button
                     </span>
                     <span className="text-[11px] text-slate-500">
-                      Allows finders to directly initiate a phone call with your verified account number.
+                      Allows finders to directly initiate a phone call with your
+                      verified account number.
                     </span>
                   </div>
                 </label>
 
-                {/* Setting 3: WhatsApp Button */}
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -525,12 +579,12 @@ const PetProfile = () => {
                       Enable "WhatsApp Owner" button
                     </span>
                     <span className="text-[11px] text-slate-500">
-                      Opens an instant WhatsApp chat with pre-filled message containing pet and tag info.
+                      Opens an instant WhatsApp chat with pre-filled message
+                      containing pet and tag info.
                     </span>
                   </div>
                 </label>
 
-                {/* Setting 4: Share Last Known Location */}
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -543,12 +597,12 @@ const PetProfile = () => {
                       Share last known location on public scan page
                     </span>
                     <span className="text-[11px] text-slate-500">
-                      Provides last registered GPS coordinates to help finders verify they are in the right vicinity.
+                      Provides last registered GPS coordinates to help finders
+                      verify they are in the right vicinity.
                     </span>
                   </div>
                 </label>
 
-                {/* Custom Instructions Input */}
                 <div className="pt-2">
                   <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
                     Special Finder Instructions (Optional)
@@ -572,7 +626,8 @@ const PetProfile = () => {
                 >
                   {savingSettings ? (
                     <>
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Saving...
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />{' '}
+                      Saving...
                     </>
                   ) : saveSuccess ? (
                     <>
@@ -588,9 +643,7 @@ const PetProfile = () => {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* MODAL: PRINT-READY COLLAR TAG TEMPLATE                   */}
-      {/* ======================================================== */}
+      {/* ── Print Modal ───────────────────────────────────────────────────── */}
       <Modal
         isOpen={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
@@ -598,48 +651,56 @@ const PetProfile = () => {
       >
         <div className="space-y-5">
           <p className="text-xs text-slate-500">
-            Print this high-contrast template to insert inside your 3D-printed collar enclosure or laminate as a waterproof tag.
+            Print this high-contrast template to insert inside your 3D-printed
+            collar enclosure or laminate as a waterproof tag.
           </p>
 
-          {/* Printable Layout Container */}
           <div className="flex justify-center p-4 bg-slate-100 dark:bg-slate-900 rounded-2xl">
             <div
               ref={printRef}
               className="bg-white text-black p-5 rounded-2xl border-2 border-black w-64 text-center shadow-lg print:border-black print:m-0"
             >
-              {/* Top Branding */}
               <div className="border-b border-black pb-2 mb-3">
-                <div className="font-black text-sm tracking-wider uppercase">ResQPet Collar Tag</div>
-                <div className="text-[10px] text-slate-600">Smart Rescue Ecosystem</div>
+                <div className="font-black text-sm tracking-wider uppercase">
+                  ResQPet Collar Tag
+                </div>
+                <div className="text-[10px] text-slate-600">
+                  Smart Rescue Ecosystem
+                </div>
               </div>
 
-              {/* High-Contrast QR Code */}
               <div className="flex justify-center py-1">
-                {qrImagePng ? (
+                {qrImage && (
                   <img
-                    src={qrImagePng}
+                    src={qrImage}
                     alt={`${pet.name} QR Tag`}
                     className="h-44 w-44 object-contain"
                   />
-                ) : null}
+                )}
               </div>
 
-              {/* Tag Information */}
               <div className="mt-3 border-t border-black pt-2 space-y-0.5">
                 <p className="font-black text-base uppercase">{pet.name}</p>
                 <p className="font-mono text-xs font-bold">TAG: {tagId}</p>
                 <p className="text-[10px] font-semibold text-slate-700 pt-1">
                   Scan with Camera or Google Lens to contact owner
                 </p>
-                <p className="text-[9px] text-slate-500 font-mono mt-0.5">resqpet.app</p>
+                <p className="text-[9px] text-slate-500 font-mono mt-0.5">
+                  resqpet.app
+                </p>
               </div>
             </div>
           </div>
 
           <div className="text-xs text-slate-500 space-y-1">
-            <p><strong>3D Printing Guidelines:</strong></p>
+            <p>
+              <strong>3D Printing Guidelines:</strong>
+            </p>
             <p>• Recommended insert pocket size: 32mm × 32mm × 2mm depth.</p>
-            <p>• Laser etching: Use the downloaded SVG vector file for crisp engraving.</p>
+            <p>
+              • Laser etching: Use the downloaded SVG vector file for crisp
+              engraving.
+            </p>
           </div>
 
           <div className="pt-3 border-t flex justify-end gap-2">
@@ -660,9 +721,7 @@ const PetProfile = () => {
         </div>
       </Modal>
 
-      {/* ======================================================== */}
-      {/* MODAL: REGENERATE QR TAG CONFIRMATION                    */}
-      {/* ======================================================== */}
+      {/* ── Regenerate Confirmation Modal ─────────────────────────────────── */}
       <Modal
         isOpen={regenerateConfirmOpen}
         onClose={() => setRegenerateConfirmOpen(false)}
@@ -675,10 +734,16 @@ const PetProfile = () => {
               Important Physical Tag Notice
             </div>
             <p>
-              Regenerating your QR Tag creates a brand-new unique Tag ID. <strong>Any physical collar tag already printed or 3D-etched will stop working</strong> and must be replaced with the new code.
+              Regenerating your QR Tag creates a brand-new unique Tag ID.{' '}
+              <strong>
+                Any physical collar tag already printed or 3D-etched will stop
+                working
+              </strong>{' '}
+              and must be replaced with the new code.
             </p>
             <p className="text-[11px] text-amber-700 dark:text-amber-400">
-              You do NOT need to regenerate the tag when updating phone numbers or medical details—those update automatically on your existing tag.
+              You do NOT need to regenerate the tag when updating phone numbers
+              or medical details—those update automatically on your existing tag.
             </p>
           </div>
 
@@ -700,17 +765,28 @@ const PetProfile = () => {
         </div>
       </Modal>
 
-      {/* Vaccinations */}
+      {/* ── Vaccinations ──────────────────────────────────────────────────── */}
       <div className="card">
-        <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Vaccinations</h2>
+        <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">
+          Vaccinations
+        </h2>
         {pet.vaccinations.length === 0 ? (
-          <p className="text-sm text-ink/60 dark:text-bone/60">No vaccination records yet.</p>
+          <p className="text-sm text-ink/60 dark:text-bone/60">
+            No vaccination records yet.
+          </p>
         ) : (
           <ul className="mb-4 space-y-2">
             {pet.vaccinations.map((v, i) => (
-              <li key={i} className="flex items-center justify-between rounded-lg bg-moss-50 px-3 py-2 text-sm dark:bg-moss-700/20 dark:text-bone">
+              <li
+                key={i}
+                className="flex items-center justify-between rounded-lg bg-moss-50 px-3 py-2 text-sm dark:bg-moss-700/20 dark:text-bone"
+              >
                 <span>{v.name}</span>
-                {v.dateGiven && <span className="font-mono text-xs text-mist-500">{new Date(v.dateGiven).toLocaleDateString()}</span>}
+                {v.dateGiven && (
+                  <span className="font-mono text-xs text-mist-500">
+                    {new Date(v.dateGiven).toLocaleDateString()}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -722,19 +798,28 @@ const PetProfile = () => {
             value={vaccineName}
             onChange={(e) => setVaccineName(e.target.value)}
           />
-          <button onClick={addVaccination} className="btn-secondary shrink-0">Add</button>
+          <button onClick={addVaccination} className="btn-secondary shrink-0">
+            Add
+          </button>
         </div>
       </div>
 
-      {/* Medical Conditions */}
+      {/* ── Medical Conditions ────────────────────────────────────────────── */}
       {pet.medicalConditions.length > 0 && (
         <div className="card">
-          <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Medical Conditions</h2>
+          <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">
+            Medical Conditions
+          </h2>
           <ul className="space-y-2">
             {pet.medicalConditions.map((m, i) => (
               <li key={i} className="text-sm">
                 <span className="font-medium">{m.condition}</span>
-                {m.notes && <span className="text-ink/60 dark:text-bone/60"> — {m.notes}</span>}
+                {m.notes && (
+                  <span className="text-ink/60 dark:text-bone/60">
+                    {' '}
+                    — {m.notes}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
