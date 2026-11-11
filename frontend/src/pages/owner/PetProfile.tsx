@@ -5,6 +5,7 @@ import { petStatusToSignal, petStatusLabel } from '@/features/pets/petStatus';
 import SignalIndicator from '@/components/ui/SignalIndicator';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import Modal from '@/components/ui/Modal';
+import QRCode from 'qrcode';
 import type { Pet } from '@/types';
 import {
   QrCode,
@@ -168,7 +169,36 @@ const PetProfile = () => {
 
   const tagId = pet.tagId || pet.petId;
   const tagUrl = `${window.location.origin}/pet/scan/${tagId}`;
-  const qrImagePng = pet.qrCode || '';
+
+  // Client-side dynamic QR generation: guarantees QR image encodes the exact tagUrl displayed
+  const [liveQrPng, setLiveQrPng] = useState<string>(pet.qrCode || '');
+  const [liveQrSvg, setLiveQrSvg] = useState<string>(pet.qrCodeSvg || '');
+
+  useEffect(() => {
+    if (!tagUrl) return;
+    QRCode.toDataURL(tagUrl, {
+      errorCorrectionLevel: 'H',
+      type: 'image/png',
+      quality: 1.0,
+      margin: 2,
+      width: 600,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((dataUrl) => setLiveQrPng(dataUrl))
+      .catch((err) => console.error('Client QR PNG error:', err));
+
+    QRCode.toString(tagUrl, {
+      type: 'svg',
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((svgStr) => setLiveQrSvg(svgStr))
+      .catch((err) => console.error('Client QR SVG error:', err));
+  }, [tagUrl]);
+
+  const qrImagePng = liveQrPng || pet.qrCode || '';
+  const qrImageSvg = liveQrSvg || pet.qrCodeSvg || '';
 
   // Download QR Code PNG (600x600 High Resolution)
   const handleDownloadPng = () => {
@@ -183,12 +213,11 @@ const PetProfile = () => {
 
   // Download QR Code Vector SVG
   const handleDownloadSvg = () => {
-    if (!pet.qrCodeSvg) {
-      // Fallback: create basic SVG if backend has not yet saved svg string
+    if (!qrImageSvg) {
       handleDownloadPng();
       return;
     }
-    const blob = new Blob([pet.qrCodeSvg], { type: 'image/svg+xml;charset=utf-8' });
+    const blob = new Blob([qrImageSvg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -262,8 +291,12 @@ const PetProfile = () => {
               <button onClick={toggleLost} disabled={actionLoading} className={pet.status === 'lost' ? 'btn-primary' : 'btn-danger'}>
                 {actionLoading ? 'Updating…' : pet.status === 'lost' ? 'Mark as safe' : 'Mark as lost'}
               </button>
-              <Link to="/owner/tracking" className="btn-secondary">
-                View live location
+              <Link
+                to="/owner/iot"
+                className="btn-secondary flex items-center gap-2"
+                title="GPS location tracking requires a ResQPet IoT Wearable Collar"
+              >
+                📍 Get Pet Location
               </Link>
               <button onClick={deletePet} className="btn-secondary text-coral-600 dark:text-coral-400">
                 Remove profile
@@ -406,7 +439,7 @@ const PetProfile = () => {
               {/* SVG Download */}
               <button
                 onClick={handleDownloadSvg}
-                disabled={!pet.qrCodeSvg}
+                disabled={!qrImageSvg}
                 className="flex items-center justify-center gap-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition text-slate-800 dark:text-slate-100 disabled:opacity-50"
               >
                 <FileCode className="h-4 w-4 text-purple-600" />
