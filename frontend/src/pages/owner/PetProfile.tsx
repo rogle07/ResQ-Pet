@@ -57,20 +57,45 @@ const PetProfile = () => {
   // ── Load pet data ─────────────────────────────────────────────────────────
   const load = async () => {
     if (!id) return;
-    setLoading(true);
+
+    // 1. Check local storage cache first for instant hydration
     try {
-      const data = await petApi.getById(id);
-      setPet(data);
-      if (data?.resqTag) {
-        setShowPhoneOnTag(data.resqTag.showPhone !== false);
-        setEnableCall(data.resqTag.enableCall !== false);
-        setEnableWhatsApp(data.resqTag.enableWhatsApp !== false);
-        setShowLocation(!!data.resqTag.showLocation);
-        setCustomInstructions(data.resqTag.customInstructions || '');
-        setContactPhone(data.resqTag.contactPhone || (data.owner as unknown as { phone?: string })?.phone || '');
+      const cached = localStorage.getItem('resqpet_owner_pets');
+      if (cached) {
+        const list: Pet[] = JSON.parse(cached);
+        const match = list.find((p) => p._id === id || p.petId === id || p.tagId === id);
+        if (match) {
+          setPet(match);
+          if (match.resqTag) {
+            setShowPhoneOnTag(match.resqTag.showPhone !== false);
+            setEnableCall(match.resqTag.enableCall !== false);
+            setEnableWhatsApp(match.resqTag.enableWhatsApp !== false);
+            setShowLocation(!!match.resqTag.showLocation);
+            setCustomInstructions(match.resqTag.customInstructions || '');
+            setContactPhone(match.resqTag.contactPhone || (match.owner as unknown as { phone?: string })?.phone || '');
+          }
+          setLoading(false);
+        }
       }
     } catch {
-      /* pet stays null → "not found" message shown */
+      /* ignore cache errors */
+    }
+
+    try {
+      const data = await petApi.getById(id);
+      if (data) {
+        setPet(data);
+        if (data?.resqTag) {
+          setShowPhoneOnTag(data.resqTag.showPhone !== false);
+          setEnableCall(data.resqTag.enableCall !== false);
+          setEnableWhatsApp(data.resqTag.enableWhatsApp !== false);
+          setShowLocation(!!data.resqTag.showLocation);
+          setCustomInstructions(data.resqTag.customInstructions || '');
+          setContactPhone(data.resqTag.contactPhone || (data.owner as unknown as { phone?: string })?.phone || '');
+        }
+      }
+    } catch (err) {
+      console.error('Error loading pet details:', err);
     } finally {
       setLoading(false);
     }
@@ -100,12 +125,37 @@ const PetProfile = () => {
 
   // ── Early returns AFTER all hooks ─────────────────────────────────────────
   if (loading) return <LoadingScreen />;
-  if (!pet) return <p className="p-8 text-sm text-ink/60">Pet not found.</p>;
+  if (!pet) {
+    return (
+      <div className="mx-auto max-w-lg card text-center p-8 space-y-4">
+        <div className="h-14 w-14 mx-auto rounded-full bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-600">
+          <AlertTriangle className="h-7 w-7" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Pet Profile Not Found</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          We could not load details for this pet. The server may be waking up or the profile has been moved.
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <button
+            onClick={() => load()}
+            className="btn-primary"
+          >
+            Retry Loading
+          </button>
+          <Link to="/owner/pets" className="btn-secondary">
+            Back to My Pets
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // ── Derived values (not hooks) ────────────────────────────────────────────
-  const tagId  = pet.tagId || pet.petId;
+  const tagId  = pet.tagId || pet.petId || '';
   const tagUrl = `${window.location.origin}/pet/scan/${tagId}`;
   const qrImage = liveQrPng || pet.qrCode || '';
+  const petVaccinations = pet.vaccinations || [];
+  const petMedicalConditions = pet.medicalConditions || [];
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const toggleLost = async () => {
@@ -791,13 +841,13 @@ const PetProfile = () => {
         <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">
           Vaccinations
         </h2>
-        {pet.vaccinations.length === 0 ? (
+        {petVaccinations.length === 0 ? (
           <p className="text-sm text-ink/60 dark:text-bone/60">
             No vaccination records yet.
           </p>
         ) : (
           <ul className="mb-4 space-y-2">
-            {pet.vaccinations.map((v, i) => (
+            {petVaccinations.map((v, i) => (
               <li
                 key={i}
                 className="flex items-center justify-between rounded-lg bg-moss-50 px-3 py-2 text-sm dark:bg-moss-700/20 dark:text-bone"
@@ -826,13 +876,13 @@ const PetProfile = () => {
       </div>
 
       {/* ── Medical Conditions ────────────────────────────────────────────── */}
-      {pet.medicalConditions.length > 0 && (
+      {petMedicalConditions.length > 0 && (
         <div className="card">
           <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">
             Medical Conditions
           </h2>
           <ul className="space-y-2">
-            {pet.medicalConditions.map((m, i) => (
+            {petMedicalConditions.map((m, i) => (
               <li key={i} className="text-sm">
                 <span className="font-medium">{m.condition}</span>
                 {m.notes && (

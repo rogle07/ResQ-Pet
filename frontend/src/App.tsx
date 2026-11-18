@@ -3,6 +3,7 @@ import { useSessionBootstrap } from '@/hooks/useSessionBootstrap';
 import ProtectedRoute from '@/routes/ProtectedRoute';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 import Home from '@/pages/public/Home';
 import Login from '@/pages/public/Login';
@@ -122,6 +123,7 @@ function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
+        <ErrorBoundary>
         <Routes>
           {/* Public */}
           <Route path="/" element={<Home />} />
@@ -301,6 +303,7 @@ function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+      </ErrorBoundary>
       </BrowserRouter>
     </ThemeProvider>
   );

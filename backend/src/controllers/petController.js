@@ -91,7 +91,16 @@ const getMyPets = asyncHandler(async (req, res) => {
 // @route   GET /api/pets/:id
 // @access  Private
 const getPetById = asyncHandler(async (req, res) => {
-  const pet = await Pet.findById(req.params.id).populate('owner', 'name email phone');
+  const mongoose = require('mongoose');
+  let pet = null;
+  if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+    pet = await Pet.findById(req.params.id).populate('owner', 'name email phone');
+  }
+  if (!pet) {
+    pet = await Pet.findOne({
+      $or: [{ petId: req.params.id }, { tagId: req.params.id }],
+    }).populate('owner', 'name email phone');
+  }
 
   if (!pet) {
     res.status(404);

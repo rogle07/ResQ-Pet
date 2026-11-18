@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
+import DonationModal from '@/components/common/DonationModal';
 import { ALL_INDIAN_CITIES } from '@/utils/cities';
 import {
   MapPin, AlertTriangle, Search, Heart, Home as HomeIcon, Gift,
@@ -213,6 +214,17 @@ const Home = () => {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(500);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+  const [showDonationModal, setShowDonationModal] = useState<boolean>(false);
+
+  const handlePayClick = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const isMobile = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = getUpiUrl(effectiveAmount);
+    } else {
+      setShowDonationModal(true);
+    }
+  };
 
   const effectiveAmount = selectedAmount || (customAmount ? Number(customAmount) : 500);
   const baseUpiUri = 'upi://pay?ver=01&mode=19&pa=random@razorpay&pn=ROGLE&tr=RZPU1ZN7yYJyzzWNmqrv2&cu=INR&mc=5732&qrMedium=04&tn=ResQPet%20Donation';
@@ -733,16 +745,17 @@ const Home = () => {
 
               {/* Action Buttons for Mobile / Desktop */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-                <a
-                  href={getUpiUrl(effectiveAmount)}
-                  className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl bg-[#1e6f42] hover:bg-emerald-700 active:scale-[0.98] py-3.5 px-6 text-sm font-black text-white shadow-lg shadow-emerald-900/30 transition-all"
+                <button
+                  type="button"
+                  onClick={handlePayClick}
+                  className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl bg-[#1e6f42] hover:bg-emerald-700 active:scale-[0.98] py-3.5 px-6 text-sm font-black text-white shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
                 >
                   <IndianRupee className="h-4 w-4" />
                   <span>
                     Pay ₹{effectiveAmount || '500'} via UPI App
                   </span>
                   <ExternalLink className="h-3.5 w-3.5 opacity-80" />
-                </a>
+                </button>
 
                 <button
                   type="button"
@@ -799,7 +812,7 @@ const Home = () => {
                 {/* Glow border ring */}
                 <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-400 to-[#1e6f42] opacity-30 blur-md group-hover:opacity-60 transition" />
 
-                <div className="relative rounded-2xl overflow-hidden bg-white shadow-inner">
+                <div onClick={() => setShowDonationModal(true)} className="relative rounded-2xl overflow-hidden bg-white shadow-inner cursor-pointer hover:opacity-95 transition" title="Click to scan or pay online">
                   <img
                     src="/donation-qr.jpg"
                     alt="ROGLE ResQPet Razorpay Donation QR Code"
@@ -827,6 +840,16 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      
+      {/* Interactive Donation Modal for Desktop and Mobile */}
+      <DonationModal
+        isOpen={showDonationModal}
+        onClose={() => setShowDonationModal(false)}
+        amount={effectiveAmount}
+        upiId="random@razorpay"
+        merchantName="ROGLE"
+      />
 
       {/* ── Bottom Features & Emergency 24/7 Support ──────────────── */}
       <section className="mx-auto max-w-[1440px] px-3.5 sm:px-6 py-6 sm:py-8">
