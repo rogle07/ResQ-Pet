@@ -316,9 +316,12 @@ const verifyRazorpayPayment = asyncHandler(async (req, res) => {
   // Record payment in Donation collection
   const donation = await Donation.create({
     donor: req.user._id,
-    type: purpose === 'foster_care' || purpose === 'adopter_care' ? 'rescue' : 'general',
+    type: ['one_time', 'monthly', 'food', 'medicine', 'rescue', 'general'].includes(purpose)
+      ? purpose
+      : (purpose === 'foster_care' || purpose === 'adopter_care') ? 'rescue' : 'one_time',
     amount: amount || 0,
     currency: (currency || 'INR').toUpperCase(),
+    paymentProvider: 'razorpay',
     paymentIntentId: `RZP-${razorpay_payment_id}`,
     isRecurring: false,
     message: message || `${purpose || 'Payment'} completed via Razorpay (${razorpay_payment_id})`,

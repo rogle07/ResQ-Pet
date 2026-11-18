@@ -4,7 +4,7 @@
  */
 
 export const RAZORPAY_KEY_ID =
-  (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || 'rzp_live_TqrM42YxNnEYQ6';
+  (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || 'rzp_test_U1aP5qTQx9JOI9';
 
 // Razorpay window type declaration
 declare global {
@@ -75,7 +75,7 @@ export function loadRazorpayScript(): Promise<boolean> {
  * @returns A promise that resolves with the payment response or rejects on failure/dismiss
  */
 export function openRazorpayCheckout(
-  options: Omit<RazorpayOptions, 'key' | 'amount'> & { amount: number }
+  options: Omit<RazorpayOptions, 'key' | 'amount'> & { amount: number; key?: string }
 ): Promise<RazorpayPaymentResponse> {
   return new Promise(async (resolve, reject) => {
     const loaded = await loadRazorpayScript();
@@ -86,7 +86,7 @@ export function openRazorpayCheckout(
 
     const rzp = new window.Razorpay({
       ...options,
-      key: RAZORPAY_KEY_ID,
+      key: options.key || RAZORPAY_KEY_ID,
       amount: Math.round(options.amount * 100), // Convert INR to paise
       currency: options.currency || 'INR',
       theme: {

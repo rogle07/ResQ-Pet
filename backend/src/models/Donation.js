@@ -4,7 +4,7 @@ const donationSchema = new mongoose.Schema(
   {
     donor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     ngo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    type: { type: String, enum: ['one_time', 'monthly', 'food', 'medicine', 'rescue'], required: true },
+    type: { type: String, enum: ['one_time', 'monthly', 'food', 'medicine', 'rescue', 'general'], required: true },
     amount: { type: Number, required: true, min: 1 },
     currency: { type: String, default: 'USD' },
     paymentProvider: { type: String, default: 'stripe' },

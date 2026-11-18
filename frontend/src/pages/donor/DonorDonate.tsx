@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { openRazorpayCheckout } from '@/utils/razorpay';
 import {
   ChevronRight,
   Heart,
@@ -13,6 +12,9 @@ import {
   Loader2,
 } from 'lucide-react';
 import { FEATURED_CAMPAIGNS } from '@/data/donorMockData';
+import DonationModal from '@/components/common/DonationModal';
+
+const UPI_ID = 'ykumar778899@okaxis';
 
 export const DonorDonate: React.FC = () => {
   const navigate = useNavigate();
@@ -27,8 +29,8 @@ export const DonorDonate: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [rzpPaymentId, setRzpPaymentId] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const [showModal, setShowModal] = useState(false);
 
   const presets = [250, 500, 1000, 2500, 5000];
 
@@ -39,40 +41,34 @@ export const DonorDonate: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
     setPaymentError('');
-    const selectedCampaign = FEATURED_CAMPAIGNS.find(c => c.id === selectedCampaignId);
-    try {
-      const response = await openRazorpayCheckout({
-        amount,
-        currency: 'INR',
-        name: 'ResQPet Foundation',
-        description: `Donation – ${selectedCampaign?.title || 'Animal Rescue'}`,
-        image: '/logo.png',
-        prefill: {
-          name: donorName,
-          email: donorEmail,
-          contact: '',
-        },
-        notes: {
-          campaignId: selectedCampaignId,
-          campaignTitle: selectedCampaign?.title || '',
-          panNumber: donorPan,
-          isRecurring: String(isRecurring),
-        },
-        theme: { color: '#7c3aed' },
-      });
-      setRzpPaymentId(response.razorpay_payment_id);
-      setSubmitted(true);
-      setTimeout(() => { navigate('/donor/my-donations'); }, 3000);
-    } catch (err: unknown) {
-      const errMsg = (err as Error)?.message || '';
-      if (!errMsg.includes('cancelled')) {
-        setPaymentError('Payment failed. Please try again.');
+
+    if (paymentMethod === 'UPI') {
+      // On mobile: deep link directly; on desktop: open modal
+      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isMobile) {
+        setIsProcessing(true);
+        const upiUri = `upi://pay?pa=${UPI_ID}&pn=ROGLE&am=${amount}&cu=INR&tn=ResQPet%20Donation`;
+        window.location.href = upiUri;
+        // After redirect attempt, mark as submitted
+        setTimeout(() => {
+          setIsProcessing(false);
+          setSubmitted(true);
+          setTimeout(() => navigate('/donor/my-donations'), 3000);
+        }, 1500);
+      } else {
+        setShowModal(true);
       }
-    } finally {
-      setIsProcessing(false);
+    } else {
+      // Card / NetBanking — show modal with QR as fallback since Razorpay is not active
+      setShowModal(true);
     }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowModal(false);
+    setSubmitted(true);
+    setTimeout(() => navigate('/donor/my-donations'), 3000);
   };
 
   return (
@@ -101,11 +97,6 @@ export const DonorDonate: React.FC = () => {
           <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
             Your generous contribution of <strong>₹{amount.toLocaleString()}</strong> has been credited to the rescue fund. Your 80G tax receipt has been emailed.
           </p>
-          {rzpPaymentId && (
-            <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 rounded-lg px-3 py-1.5 inline-block">
-              Razorpay Payment ID: RZP-{rzpPaymentId}
-            </p>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
@@ -267,6 +258,11 @@ export const DonorDonate: React.FC = () => {
                     <Building className="h-4 w-4 mx-auto mb-1" /> Net Banking
                   </button>
                 </div>
+                {(paymentMethod === 'Card' || paymentMethod === 'NetBanking') && (
+                  <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3 py-2">
+                    Card/NetBanking gateway is currently being upgraded. Please use <strong>UPI / QR</strong> for instant donations.
+                  </p>
+                )}
               </div>
 
               {paymentError && (
@@ -288,8 +284,8 @@ export const DonorDonate: React.FC = () => {
                   className="rounded-2xl bg-purple-700 px-6 py-2.5 font-bold text-white hover:bg-purple-800 shadow-md shadow-purple-950/20 transition-all hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isProcessing
-                    ? <><Loader2 className="h-4 w-4 animate-spin" />Opening Razorpay&hellip;</>
-                    : <>Pay ₹{amount.toLocaleString()} via Razorpay &rarr;</>}
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Opening Payment&hellip;</>
+                    : <>Pay &#x20B9;{amount.toLocaleString()} via UPI &rarr;</>}
                 </button>
               </div>
             </form>
@@ -309,15 +305,36 @@ export const DonorDonate: React.FC = () => {
             <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-2 text-[11px] text-slate-500">
               <span className="font-bold text-slate-900 dark:text-white block text-xs">Security Guarantee</span>
               <p className="flex items-center gap-1.5">
-                <Lock className="h-3 w-3 text-emerald-600" /> Razorpay PCI-DSS Compliant
+                <Lock className="h-3 w-3 text-emerald-600" /> Secure UPI Payment (BHIM / NPCI)
               </p>
               <p className="flex items-center gap-1.5">
                 <CheckCircle className="h-3 w-3 text-blue-600" /> Instant PDF Tax Receipt in your Inbox
               </p>
             </div>
+
+            {/* GPay QR preview in sidebar */}
+            <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 flex flex-col items-center gap-2">
+              <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">Scan to Pay Directly</p>
+              <img
+                src="/gpay-donation-qr.jpg"
+                alt="GPay QR Code"
+                className="h-32 w-32 object-contain rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white p-1"
+              />
+              <p className="text-[10px] font-mono text-slate-600 dark:text-slate-400">{UPI_ID}</p>
+            </div>
           </div>
         </div>
       )}
+
+      {/* UPI Donation Modal */}
+      <DonationModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        amount={amount}
+        upiId={UPI_ID}
+        merchantName="ROGLE"
+        onPaymentSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 };

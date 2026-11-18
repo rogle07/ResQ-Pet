@@ -9,11 +9,14 @@ import {
   ExternalLink,
   ShieldCheck,
   Heart,
-  CreditCard,
   Smartphone,
   Info,
 } from 'lucide-react';
-import { openRazorpayCheckout } from '@/utils/razorpay';
+export interface DonationSuccessDetails {
+  amount: number;
+  paymentId: string;
+  orderId?: string;
+}
 
 interface DonationModalProps {
   isOpen: boolean;
@@ -21,20 +24,21 @@ interface DonationModalProps {
   amount: number;
   upiId?: string;
   merchantName?: string;
+  onPaymentSuccess?: (details: DonationSuccessDetails) => void;
 }
 
 export const DonationModal: FC<DonationModalProps> = ({
   isOpen,
   onClose,
   amount,
-  upiId = 'random@razorpay',
+  upiId = 'ykumar778899@okaxis',
   merchantName = 'ROGLE',
+  onPaymentSuccess,
 }) => {
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [dynamicQrUrl, setDynamicQrUrl] = useState('');
   const [showStandee, setShowStandee] = useState(false);
-  const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
 
   // Generate the standard UPI payment URI with pre-filled amount
   const upiUri = `upi://pay?ver=01&mode=19&pa=${upiId}&pn=${encodeURIComponent(
@@ -86,30 +90,19 @@ export const DonationModal: FC<DonationModalProps> = ({
     window.location.href = target;
   };
 
-  const handlePayViaRazorpayOnline = async () => {
-    setIsProcessingRazorpay(true);
-    try {
-      await openRazorpayCheckout({
+  const handleCompletedPayment = () => {
+    const generatedId = `UPI-${Date.now().toString().slice(-8)}`;
+    if (onPaymentSuccess) {
+      onPaymentSuccess({
         amount,
-        currency: 'INR',
-        name: merchantName,
-        description: 'Support Animal Welfare — ResQPet Donation',
-        image: '/donation-qr-code.png',
-        theme: { color: '#1e6f42' },
+        paymentId: generatedId,
+        orderId: `ORD-${Date.now().toString().slice(-6)}`,
       });
-      alert('Thank you for your generous donation to ResQPet & ROGLE!');
-      onClose();
-    } catch (err: unknown) {
-      const msg = (err as Error)?.message || '';
-      if (!msg.toLowerCase().includes('cancel')) {
-        alert('Online checkout could not be completed. You can scan the UPI QR code directly with any UPI app.');
-      }
-    } finally {
-      setIsProcessingRazorpay(false);
     }
+    onClose();
   };
 
-  const qrToDownload = showStandee ? '/donation-qr.jpg' : dynamicQrUrl || '/donation-qr.jpg';
+  const qrToDownload = showStandee ? '/gpay-donation-qr.jpg' : dynamicQrUrl || '/gpay-donation-qr.jpg';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn">
@@ -154,7 +147,7 @@ export const DonationModal: FC<DonationModalProps> = ({
             </div>
             <div className="text-right space-y-0.5">
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Powered by Razorpay
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Secure UPI Payment
               </span>
               <p className="text-[10px] text-slate-500 font-mono">
                 Merchant: {merchantName}
@@ -167,7 +160,7 @@ export const DonationModal: FC<DonationModalProps> = ({
             <div className="flex items-center justify-between w-full text-xs font-semibold text-slate-600 dark:text-slate-300">
               <span className="flex items-center gap-1.5">
                 <QrCode className="h-4 w-4 text-[#1e6f42]" />
-                {showStandee ? 'Official Razorpay Standee QR' : `Dynamic QR for exact ₹${amount}`}
+                {showStandee ? 'Official GPay Standee QR' : `Dynamic QR for exact ₹${amount}`}
               </span>
               <button
                 type="button"
@@ -181,8 +174,8 @@ export const DonationModal: FC<DonationModalProps> = ({
             <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 flex items-center justify-center">
               {showStandee ? (
                 <img
-                  src="/donation-qr.jpg"
-                  alt="Razorpay ROGLE Standee"
+                  src="/gpay-donation-qr.jpg"
+                  alt="GPay ROGLE Standee"
                   className="h-56 w-auto object-contain rounded-lg"
                 />
               ) : dynamicQrUrl ? (
@@ -259,7 +252,7 @@ export const DonationModal: FC<DonationModalProps> = ({
           <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3.5 bg-slate-50/70 dark:bg-slate-800/40 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-slate-500 dark:text-slate-400">
-                Official Razorpay UPI ID:
+                Official UPI ID:
               </span>
               <span className="font-mono font-bold text-slate-900 dark:text-white">
                 {upiId}
@@ -303,20 +296,15 @@ export const DonationModal: FC<DonationModalProps> = ({
             </div>
           </div>
 
-          {/* Online Card / Netbanking / Razorpay Checkout Option */}
+          {/* Confirmation button after paying via UPI */}
           <div className="pt-1">
             <button
               type="button"
-              onClick={handlePayViaRazorpayOnline}
-              disabled={isProcessingRazorpay}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md transition disabled:opacity-50"
+              onClick={handleCompletedPayment}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm shadow-md transition active:scale-[0.98]"
             >
-              <CreditCard className="h-4 w-4" />
-              <span>
-                {isProcessingRazorpay
-                  ? 'Opening Razorpay Checkout…'
-                  : `Pay ₹${amount} with Card / NetBanking / Razorpay`}
-              </span>
+              <Check className="h-4 w-4" />
+              <span>I Have Paid ₹{amount} (Confirm Donation)</span>
             </button>
           </div>
 

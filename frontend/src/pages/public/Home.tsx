@@ -227,7 +227,7 @@ const Home = () => {
   };
 
   const effectiveAmount = selectedAmount || (customAmount ? Number(customAmount) : 500);
-  const baseUpiUri = 'upi://pay?ver=01&mode=19&pa=random@razorpay&pn=ROGLE&tr=RZPU1ZN7yYJyzzWNmqrv2&cu=INR&mc=5732&qrMedium=04&tn=ResQPet%20Donation';
+  const baseUpiUri = 'upi://pay?ver=01&mode=19&pa=ykumar778899@okaxis&pn=ROGLE&tr=RZPU1ZN7yYJyzzWNmqrv2&cu=INR&mc=5732&qrMedium=04&tn=ResQPet%20Donation';
 
   const getUpiUrl = (amt: number) => {
     if (amt && amt > 0) {
@@ -814,7 +814,7 @@ const Home = () => {
 
                 <div onClick={() => setShowDonationModal(true)} className="relative rounded-2xl overflow-hidden bg-white shadow-inner cursor-pointer hover:opacity-95 transition" title="Click to scan or pay online">
                   <img
-                    src="/donation-qr.jpg"
+                    src="/gpay-donation-qr.jpg"
                     alt="ROGLE ResQPet Razorpay Donation QR Code"
                     className="w-full h-auto object-contain block"
                   />
@@ -827,7 +827,7 @@ const Home = () => {
                     <span>Scan with Any UPI App</span>
                   </div>
                   <a
-                    href="/donation-qr.jpg"
+                    href="/gpay-donation-qr.jpg"
                     download="ResQPet_ROGLE_Donation_QR.jpg"
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1e6f42] dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-900 text-[11px] font-bold transition shadow-sm"
                   >
@@ -847,7 +847,7 @@ const Home = () => {
         isOpen={showDonationModal}
         onClose={() => setShowDonationModal(false)}
         amount={effectiveAmount}
-        upiId="random@razorpay"
+        upiId="ykumar778899@okaxis"
         merchantName="ROGLE"
       />
 
