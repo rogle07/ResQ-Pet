@@ -5,7 +5,8 @@ import { ALL_INDIAN_CITIES } from '@/utils/cities';
 import {
   MapPin, AlertTriangle, Search, Heart, Home as HomeIcon, Gift,
   Bell, Cpu, Users, Shield, Phone, ArrowRight, ChevronRight,
-  PawPrint, TrendingUp, Sparkles, Filter, CheckCircle2, Clock
+  PawPrint, TrendingUp, Sparkles, Filter, CheckCircle2, Clock,
+  QrCode, Copy, Check, Download, ExternalLink, HeartHandshake, IndianRupee, ShieldCheck
 } from 'lucide-react';
 
 /* ─── Platform Stats ─────────────────────────────────────────── */
@@ -207,6 +208,27 @@ const Home = () => {
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedSpecies, setSelectedSpecies] = useState('all');
   const [selectedService, setSelectedService] = useState('adoption');
+
+  // Instant UPI Donation states
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(500);
+  const [customAmount, setCustomAmount] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
+
+  const effectiveAmount = selectedAmount || (customAmount ? Number(customAmount) : 500);
+  const baseUpiUri = 'upi://pay?ver=01&mode=19&pa=random@razorpay&pn=ROGLE&tr=RZPU1ZN7yYJyzzWNmqrv2&cu=INR&mc=5732&qrMedium=04&tn=ResQPet%20Donation';
+
+  const getUpiUrl = (amt: number) => {
+    if (amt && amt > 0) {
+      return `${baseUpiUri}&am=${amt}`;
+    }
+    return baseUpiUri;
+  };
+
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(getUpiUrl(effectiveAmount));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   const handleQuickSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -613,6 +635,195 @@ const Home = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Instant UPI Donation & Animal Welfare Support ─────────────── */}
+      <section id="donate" className="mx-auto max-w-[1440px] px-3.5 sm:px-6 py-6 sm:py-10">
+        <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-emerald-500/15 p-5 sm:p-8 lg:p-10 shadow-xl dark:border-emerald-500/30 dark:bg-slate-800/90 dark:from-slate-800/95 dark:to-[#07180f]">
+          {/* Subtle background glow */}
+          <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-teal-500/20 blur-3xl" />
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Left Column: Headline, Info, Preset Amounts & Mobile UPI Action */}
+            <div className="lg:col-span-7 space-y-5 text-left">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-100/80 px-3.5 py-1 text-xs font-bold text-emerald-900 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-950/70 dark:text-emerald-300">
+                <HeartHandshake className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Support Animal Welfare – Instant UPI Donation</span>
+              </div>
+
+              <div>
+                <h2 className="font-display text-2xl xs:text-3xl sm:text-4xl font-black tracking-tight text-gray-900 dark:text-white leading-tight">
+                  Your Contribution <span className="text-emerald-600 dark:text-emerald-400">Saves Stray Animals</span>
+                </h2>
+                <p className="mt-2.5 text-xs sm:text-sm text-gray-600 dark:text-slate-300 leading-relaxed max-w-xl">
+                  Every rupee goes directly to emergency vet treatments, daily feeding drives, rescue transport, and smart IoT tracking collars for abandoned animals. Scan the QR code or tap to donate instantly via Google Pay, PhonePe, Paytm, or any UPI app.
+                </p>
+              </div>
+
+              {/* Quick Amount Selector */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-2">
+                  Select Donation Amount:
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {[
+                    { amount: 100, label: 'Feed a Stray', sub: 'Biscuits & Meal' },
+                    { amount: 250, label: 'First Aid', sub: 'Bandages & Spray' },
+                    { amount: 500, label: 'Vaccination', sub: 'Anti-Rabies Shot', popular: true },
+                    { amount: 1000, label: 'Vet Care', sub: 'Doctor & Meds' },
+                    { amount: 2000, label: 'Surgery Aid', sub: 'Emergency Care' },
+                  ].map((tier) => {
+                    const isSelected = selectedAmount === tier.amount;
+                    return (
+                      <button
+                        key={tier.amount}
+                        type="button"
+                        onClick={() => {
+                          setSelectedAmount(tier.amount);
+                          setCustomAmount('');
+                        }}
+                        className={`relative rounded-xl p-2.5 text-center transition-all border ${
+                          isSelected
+                            ? 'border-emerald-600 bg-emerald-600 text-white shadow-md shadow-emerald-900/30 scale-[1.02]'
+                            : 'border-gray-200 bg-white text-gray-800 hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/60'
+                        }`}
+                      >
+                        {tier.popular && !isSelected && (
+                          <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-orange-500 px-1.5 py-0.2 text-[8px] font-black text-white uppercase tracking-wider">
+                            Popular
+                          </span>
+                        )}
+                        <div className="font-mono text-sm sm:text-base font-black">₹{tier.amount}</div>
+                        <div className={`text-[10px] font-semibold truncate ${isSelected ? 'text-emerald-100' : 'text-gray-500 dark:text-slate-400'}`}>
+                          {tier.label}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Amount Field */}
+                <div className="mt-2.5 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs sm:text-sm">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      placeholder="Or enter custom amount in Rupees..."
+                      value={customAmount}
+                      onChange={(e) => {
+                        setCustomAmount(e.target.value);
+                        setSelectedAmount(null);
+                      }}
+                      className="w-full rounded-xl border border-gray-300 bg-white pl-8 pr-3 py-2 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                      min="1"
+                    />
+                  </div>
+                  {customAmount && (
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                      ₹{customAmount} selected
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons for Mobile / Desktop */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                <a
+                  href={getUpiUrl(effectiveAmount)}
+                  className="flex-1 flex items-center justify-center gap-2.5 rounded-2xl bg-[#1e6f42] hover:bg-emerald-700 active:scale-[0.98] py-3.5 px-6 text-sm font-black text-white shadow-lg shadow-emerald-900/30 transition-all"
+                >
+                  <IndianRupee className="h-4 w-4" />
+                  <span>
+                    Pay ₹{effectiveAmount || '500'} via UPI App
+                  </span>
+                  <ExternalLink className="h-3.5 w-3.5 opacity-80" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleCopyUpi}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 px-5 text-xs sm:text-sm font-bold text-gray-800 shadow-sm hover:bg-gray-50 active:scale-[0.98] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-all"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-emerald-600 dark:text-emerald-400">UPI Link Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      <span>Copy UPI Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Supported Payment Apps Bar */}
+              <div className="pt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 dark:text-slate-400">
+                <span className="font-semibold text-gray-700 dark:text-slate-300">Supported UPI Apps:</span>
+                {['Google Pay', 'PhonePe', 'Paytm', 'BHIM UPI', 'Amazon Pay', 'Cred', 'Any Bank UPI'].map((app) => (
+                  <span
+                    key={app}
+                    className="rounded-md bg-white/90 dark:bg-slate-800 px-2 py-0.5 border border-gray-200/80 dark:border-slate-700 text-[10px] font-medium"
+                  >
+                    {app}
+                  </span>
+                ))}
+              </div>
+
+              {/* 100% Transparency Trust Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-200/70 dark:border-slate-700">
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-slate-300">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span>Verified: <strong>ROGLE</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-slate-300">
+                  <Shield className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span>Powered by <strong>Razorpay</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-slate-300">
+                  <Heart className="h-4 w-4 text-emerald-500 shrink-0 fill-current" />
+                  <span>100% to Animal Welfare</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: The Official Razorpay ROGLE Standee Poster Display */}
+            <div className="lg:col-span-5 flex flex-col items-center justify-center">
+              <div className="relative group max-w-[270px] xs:max-w-[290px] w-full bg-white dark:bg-slate-900 rounded-3xl p-3 shadow-2xl border-2 border-emerald-500/40 transition-transform duration-300 hover:scale-[1.02]">
+                {/* Glow border ring */}
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-400 to-[#1e6f42] opacity-30 blur-md group-hover:opacity-60 transition" />
+
+                <div className="relative rounded-2xl overflow-hidden bg-white shadow-inner">
+                  <img
+                    src="/donation-qr.jpg"
+                    alt="ROGLE ResQPet Razorpay Donation QR Code"
+                    className="w-full h-auto object-contain block"
+                  />
+                </div>
+
+                {/* Download Button below Poster */}
+                <div className="mt-3 flex items-center justify-between gap-2 px-1">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <QrCode className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Scan with Any UPI App</span>
+                  </div>
+                  <a
+                    href="/donation-qr.jpg"
+                    download="ResQPet_ROGLE_Donation_QR.jpg"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#1e6f42] dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-900 text-[11px] font-bold transition shadow-sm"
+                  >
+                    <Download className="h-3 w-3" />
+                    Save QR
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
